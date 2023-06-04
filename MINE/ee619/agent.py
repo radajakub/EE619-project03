@@ -4,7 +4,8 @@ from typing import Dict
 from os.path import abspath, dirname, realpath
 from dm_env import TimeStep
 import numpy as np
-import torch as th
+import torch
+import torch.nn as nn
 
 
 ROOT = dirname(abspath(realpath(__file__)))  # path to the ee619 directory
@@ -17,6 +18,9 @@ def flatten_and_concat(dmc_observation: Dict[str, np.ndarray]) -> np.ndarray:
     return np.concatenate([[obs] if np.isscalar(obs) else obs.ravel()
                            for obs in dmc_observation.values()])
 
+def to_tensor(array: np.ndarray) -> torch.Tensor:
+    """Convert NumPy array to a PyTorch Tensor of data type torch.float32"""
+    return torch.as_tensor(array, dtype=torch.float32)
 
 class Agent:
     """Agent for a Walker2DBullet environment."""
@@ -62,10 +66,10 @@ class QFunction:
     The network takes state as input and returns value of a given state action pair
     """
     def __init__(self, inputs: int, outputs: int) -> None:
-        self.network = th.nn.Sequential(
-            th.nn.Linear(inputs, 64),
-            th.nn.ReLU(),
-            th.nn.Linear(64, outputs),
+        self.network = nn.Sequential(
+            nn.Linear(inputs, 64),
+            nn.ReLU(),
+            nn.Linear(64, outputs),
         )
 
     def clone_params(self, other: QFunction) -> None:
