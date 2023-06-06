@@ -1,3 +1,5 @@
+from os.path import dirname, abspath, realpath, join
+from datetime import datetime
 from functools import reduce
 import operator
 from argparse import ArgumentParser
@@ -12,9 +14,9 @@ from tqdm import trange
 
 from agent import flatten_and_concat, GaussianPolicy, to_tensor
 from replay import ReplayBuffer
-from output import Stats, default_save_path
 from qfunction import QFunction
 
+ROOT = dirname(abspath(realpath(__file__)))  # path to the directory
 
 def prod(iterable: Iterable[int]) -> int:
     return reduce(operator.mul, iterable, 1)
@@ -23,7 +25,7 @@ def prod(iterable: Iterable[int]) -> int:
 def build_argument_parser() -> ArgumentParser:
     """Returns an argument parser for main."""
     parser = ArgumentParser()
-    parser.add_argument('--save_path', type=str, default=default_save_path())
+    parser.add_argument('--save_path', type=str)
     parser.add_argument('-q', action='store_false', dest='log')
     parser.add_argument('--domain', default='walker')
     parser.add_argument('--gamma', type=float, default=0.99)
@@ -35,24 +37,6 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--test-every', type=int, default=1000)
     parser.add_argument('--test-num', type=int, default=10)
     return parser
-
-def run_episode(env: Environment, policy: GaussianPolicy, replay_buffer: ReplayBuffer, stats: Stats):
-    # reset the environment (obtain start state)
-    time_step = env.reset()
-    # go through every step and add them to replay buffer
-    rewards: List[float] = []
-    while not time_step.last():
-        state = flatten_and_concat(time_step.observation)
-        # do not compute gradient
-        with torch.no_grad():
-            action, _ = policy.act(to_tensor(state))
-        time_step = env.step(action)
-        # replay buffer takes state s_t action a_t and time_step with reward r_t+1 and next state s_t+1
-        replay_buffer.push(state, action, time_step.reward, flatten_and_concat(time_step.observation))
-        rewards.append(time_step.reward)
-    # save rewards to stats
-    stats.save_rewards(np.array(rewards))
-
 
 def main(domain: str,
          gamma: float,
@@ -70,8 +54,7 @@ def main(domain: str,
     np.random.seed(seed)
 
     # setup logging utility
-    writer = SummaryWriter() if log else None
-    stats = Stats(num_episodes, 1000, save_path, gamma)
+    writer = SummaryWriter(join(dirname(ROOT), 'experiments'))
 
     # init environment and query information
     env: Environment = suite.load(domain, task, task_kwargs={'random': seed})
@@ -86,41 +69,95 @@ def main(domain: str,
 
     replay_buffer = ReplayBuffer()
 
+    # define weight vector for episode returns
+    gammas = np.fromfunction(lambda i: np.power(gamma, i), (int(1e3),), dtype=float)
+
     # define Q networks
-    Qnum = 2
-    Qs = [QFunction(state_shape, action_shape) for _ in range(Qnum)]
-    for Q in Qs:
-        Q.train()
-    Q_optims = [Adam(Qs[i].parameters(), lr=learning_rate) for i in range(Qnum)]
+    Q1 = QFunction(state_shape, action_shape)
+    Q1.train()
+    Q1_optim = Adam(Q1.parameters(), lr=learning_rate)
+    Q2 = QFunction(state_shape, action_shape)
+    Q2.train()
+    Q2_optim = Adam(Q1.parameters(), lr=learning_rate)
 
     # define target Q networks and clone the parameters
-    Qtargets = [QFunction(state_shape, action_shape) for _ in range(Qnum)]
-    for i in range(Qnum):
-        Qtargets[i].hard_update(Qs[i])
-    # optimizer is not needed as the parameters are updated from the main Q networks
+    Q1_target = QFunction(state_shape, action_shape)
+    Q1_target.hard_update(Q1)
+    Q2_target = QFunction(state_shape, action_shape)
+    Q2_target.hard_update(Q2)
 
     # initialize gaussian policy and set it to train mode
     pi = GaussianPolicy(state_shape, action_shape, action_loc, action_scale)
     pi.train()
     pi_optim = Adam(pi.parameters(), lr=learning_rate)
 
-    for episode in trange(num_episodes):
-        run_episode(env, pi, replay_buffer, stats)
+    updates = 0
+    step_count = 0
 
-        if not replay_buffer.can_sample():
-            continue
+    for episode in range(num_episodes):
+        # start new episode in the environment
+        time_step = env.reset()
+        episode_rewards: List[float] = []
 
-        # sample batch from replay buffer
-        states, actions, rewards, next_states = replay_buffer.sample()
+        # rollout episode
+        while not time_step.last():
+            # make a step
+            state = flatten_and_concat(time_step.observation)
+            with torch.no_grad():
+                action, _ = pi.act(to_tensor(state))
+            time_step = env.step(action)
 
-        # update Q functions
-        # sample next action
+            # save transition to replay buffer
+            replay_buffer.push(state, action, time_step.reward, flatten_and_concat(time_step.observation))
 
-        # update policy pi
+            step_count += 1
+            episode_rewards.append(time_step.reward)
 
-        # update target V function
-        for i in range(Qnum):
-            Qtargets[i].soft_update(Qs[i], tau=tau)
+            # update weights
+            if replay_buffer.can_sample():
+                # sample from replay buffer
+                s, a, r, s_ = replay_buffer.sample()
+
+                # update Q functions
+                # compute targets
+                with torch.no_grad():
+                    a_ = pi.act(to_tensor(s_))
+
+                # update policy pi
+
+                # update target Q functions
+                Q1_target.soft_update(Q1, tau=tau)
+                Q2_target.soft_update(Q2, tau=tau)
+
+                # save losses
+                # writer.add_scalar('loss/Q1', Q1_loss, updates)
+                # writer.add_scalar('loss/Q2', Q2_loss, updates)
+                # writer.add_scalar('loss/pi', pi_loss, updates)
+                # writer.add_scalar('temperature', alpha, updates)
+                updates += 1
+
+        episode_return = np.dot(gammas, np.array(episode_rewards))
+        writer.add_scalar('return/train', episode_return, episode)
+        print(f"Episode: {episode}, steps: {step_count}, episode steps: {len(episode_rewards)}, return: {round(episode_return, 2)}")
+
+
+        # testing
+        if episode % test_every == 0:
+            returns = []
+            for _ in range(test_num):
+                rewards = []
+                time_step = env.reset()
+                while not time_step.last():
+                    with torch.no_grad():
+                        action, _ = pi.act(to_tensor(flatten_and_concat(time_step.observation)))
+                    time_step = env.step(action)
+                    rewards.append(time_step.reward)
+                returns.append(np.dot(gammas, np.array(episode_rewards)))
+            avg_return = np.average(returns)
+            writer.add_scalar('average_return/test', avg_return, episode)
+            print(f"Test in episode: {episode}, average return: {round(avg_return, 2)}")
+
+    env.close()
 
 
 if __name__ == "__main__":
