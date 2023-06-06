@@ -10,10 +10,10 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from tqdm import trange
 
-from agent import flatten_and_concat, GaussianPolicy
+from agent import flatten_and_concat, GaussianPolicy, to_tensor
 from replay import ReplayBuffer
 from output import Stats, default_save_path
-from MINE.ee619.qfunction import QFunction
+from qfunction import QFunction
 
 
 def prod(iterable: Iterable[int]) -> int:
@@ -45,7 +45,7 @@ def run_episode(env: Environment, policy: GaussianPolicy, replay_buffer: ReplayB
         state = flatten_and_concat(time_step.observation)
         # do not compute gradient
         with torch.no_grad():
-            action = policy.act(state)
+            action, _ = policy.act(to_tensor(state))
         time_step = env.step(action)
         # replay buffer takes state s_t action a_t and time_step with reward r_t+1 and next state s_t+1
         replay_buffer.add(state, action, time_step.reward, flatten_and_concat(time_step.observation))
@@ -76,7 +76,7 @@ def main(domain: str,
     # init environment and query information
     env: Environment = suite.load(domain, task, task_kwargs={'random': seed})
     observation_spec = env.observation_spec()
-    state_shape = np.sum(prod(value.shape) for value in observation_spec.values())
+    state_shape = np.sum([prod(value.shape) for value in observation_spec.values()])
     action_spec = env.action_spec()
     action_shape = prod(action_spec.shape)
     max_action = action_spec.maximum
@@ -91,7 +91,7 @@ def main(domain: str,
     Qs = [QFunction(state_shape, action_shape) for _ in range(Qnum)]
     for Q in Qs:
         Q.train()
-    Q_optims = [Adam(Qs[i].paramters(), lr=learning_rate) for i in range(Qnum)]
+    Q_optims = [Adam(Qs[i].parameters(), lr=learning_rate) for i in range(Qnum)]
 
     # define target Q networks and clone the parameters
     Qtargets = [QFunction(state_shape, action_shape) for _ in range(Qnum)]

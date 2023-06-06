@@ -2,6 +2,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 import torch.nn.functional as F
+from copy import deepcopy
 
 class QFunction(nn.Module):
     def __init__(self, state_dim: int, action_dim: int, hidden_dim=64) -> None:
@@ -19,7 +20,8 @@ class QFunction(nn.Module):
         return q
 
     def clone_weights(self, other: QFunction) -> None:
-        self.load_state_dict(other.state_dict)
+        self.load_state_dict(other.state_dict())
 
     def update_weights(self, other: QFunction, tau: float=0.005) -> None:
-        self.load_state_dict(tau * other.state_dict + (1 - tau) * self.state_dict)
+        for param1, param2 in zip(self.parameters(), other.parameters()):
+            param1.data = tau * param2.data + (1 - tau) * param1.data

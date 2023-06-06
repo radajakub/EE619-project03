@@ -1,5 +1,5 @@
 from collections import deque
-from typing import NamedTuple, Tuple
+from typing import Tuple
 import numpy as np
 
 class ReplayBuffer:
@@ -25,4 +25,9 @@ class ReplayBuffer:
     # draw a sample of TimeSteps with the size of batch_size
     def sample(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         indices = np.random.choice(len(self.states), size=self.batch_size, replace=False)
-        return self.states[indices], self.actions[indices], self.rewards[indices], self.next_states[indices]
+        temp_states = np.array(self.states)
+        temp_actions = np.array(self.actions)
+        temp_rewards = np.array(self.rewards)
+        temp_next_states = np.array(self.next_states)
+
+        return temp_states[indices], temp_actions[indices], temp_rewards[indices], temp_next_states[indices]

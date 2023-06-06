@@ -26,7 +26,7 @@ def default_save_path() -> str:
 
 class Stats:
     def __init__(self, episode_count: int, episode_length: int, save_path: str, gamma: float) -> None:
-        self.rewards: np.ndarray = np.zeros(episode_count, episode_length)
+        self.rewards = np.zeros((episode_count, episode_length))
         self.save_path = join(save_path, 'rewards.npy')
         self.last_episode = 0
 

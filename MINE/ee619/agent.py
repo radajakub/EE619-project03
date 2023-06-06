@@ -6,7 +6,7 @@ from dm_env import TimeStep
 import numpy as np
 import torch
 from torch import nn
-from torch.nn.functional import F
+import torch.nn.functional as F
 from torch.distributions import Independent, Normal
 
 
@@ -62,7 +62,7 @@ class Agent:
 
 class GaussianPolicy(nn.Module):
     def __init__(self, state_dim: int, action_dim: int, action_loc: float, action_scale: float, hidden_dim: int=64) -> None:
-        super.__init__()
+        super().__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.loc_layer = nn.Linear(hidden_dim, action_dim)
@@ -85,5 +85,5 @@ class GaussianPolicy(nn.Module):
         action = Independent(distribution, 1).sample().squeeze(0).numpy()
         # map action
         action = np.tanh(action) * self.action_scale + self.action_loc
-        log_prob = distribution.log_prob(action)
+        log_prob = distribution.log_prob(to_tensor(action))
         return action, log_prob
