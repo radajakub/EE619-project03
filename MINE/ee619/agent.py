@@ -6,6 +6,7 @@ from dm_env import TimeStep
 import numpy as np
 import torch
 from torch import nn
+from torch.nn.functional import F
 from torch.distributions import Independent, Normal
 
 
@@ -60,22 +61,27 @@ class Agent:
         #   self.policy.load_state_dict(torch.load(path))
 
 class GaussianPolicy(nn.Module):
-    def __init__(self, state_dim, action_dim) -> None:
+    def __init__(self, state_dim: int, action_dim: int, action_loc: float, action_scale: float, hidden_dim: int=64) -> None:
         super.__init__()
-        self.fc1 = nn.Linear(state_dim, 64)
-        self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, action_dim)
-        self.scale = nn.Parameter(torch.zeros(action_dim))
-        torch.nn.init.constant_(self.scale, -0.5)
+        self.fc1 = nn.Linear(state_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.loc_layer = nn.Linear(hidden_dim, action_dim)
+        self.scale_layer = nn.Linear(hidden_dim, action_dim)
+        self.action_loc = action_loc
+        self.action_scale = action_scale
 
-    def forward(self, input_: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        loc = torch.tanh(self.fc1(input_))
-        loc = torch.tanh(self.fc2(loc))
-        loc = self.fc3(loc)
-        scale = self.scale.exp().expand_as(loc)
+    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        val = F.relu(self.fc1(state))
+        val = F.relu(self.fc2(val))
+
+        loc = self.loc_layer(val)
+        scale = self.scale_layer(val).exp().expand_as(loc)
+
         return loc, scale
 
     def act(self, state: np.ndarray) -> np.ndarray:
         loc, scale = self(to_tensor(state).unsqueeze(0))
         action = Independent(Normal(loc, scale), 1).sample().squeeze(0).numpy()
+        # map action
+        action = np.tanh(action) * self.action_scale + self.action_loc
         return action

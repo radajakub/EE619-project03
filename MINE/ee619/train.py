@@ -1,7 +1,7 @@
 from functools import reduce
 import operator
 from argparse import ArgumentParser
-from typing import Callable, Iterable, List
+from typing import Iterable, List
 from dm_control import suite
 from dm_control.rl.control import Environment
 import numpy as np
@@ -35,7 +35,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--test-num', type=int, default=10)
     return parser
 
-def run_episode(env: Environment, map_action: Callable[[np.ndarray], np.ndarray], policy: GaussianPolicy, replay_buffer: ReplayBuffer, stats: Stats):
+def run_episode(env: Environment, policy: GaussianPolicy, replay_buffer: ReplayBuffer, stats: Stats):
     # reset the environment (obtain start state)
     time_step = env.reset()
     # go through every step and add them to replay buffer
@@ -43,7 +43,7 @@ def run_episode(env: Environment, map_action: Callable[[np.ndarray], np.ndarray]
     while not time_step.last():
         state = flatten_and_concat(time_step.observation)
         action = policy.act(state)
-        time_step = env.step(map_action(action))
+        time_step = env.step(action)
         # replay buffer takes state s_t action a_t and time_step with reward r_t+1 and next state s_t+1
         replay_buffer.add(state, action, time_step.reward, flatten_and_concat(time_step.observation))
         rewards.append(time_step.reward)
@@ -80,8 +80,6 @@ def main(domain: str,
     action_loc = (max_action + min_action) / 2
     action_scale = (max_action - min_action) / 2
 
-    action_map = lambda input_: np.tanh(input_) * action_scale + action_loc
-
     replay_buffer = ReplayBuffer()
 
     V = VFunction(state_shape)
@@ -93,12 +91,12 @@ def main(domain: str,
     Qs = [QFunction(state_shape, action_shape) for _ in range(Qnum)]
     Q_optims = [Adam(Qs[i].paramters(), lr=learning_rate) for i in range(Qnum)]
 
-    pi = GaussianPolicy(state_shape, action_shape)
+    pi = GaussianPolicy(state_shape, action_shape, action_loc, action_scale)
     pi.train()
     pi_optim = Adam(pi.parameters(), lr=learning_rate)
 
     for episode in trange(num_episodes):
-        run_episode(env, action_map, pi, replay_buffer, stats)
+        run_episode(env, pi, replay_buffer, stats)
 
         if not replay_buffer.can_sample():
             continue
