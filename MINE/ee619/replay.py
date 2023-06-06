@@ -13,7 +13,7 @@ class ReplayBuffer:
         self.next_states = deque([], maxlen=size)
 
     # add TimeStep into the replay buffer
-    def add(self, state: np.ndarray, action: np.ndarray, reward: float, next_state: np.ndarray) -> None:
+    def push(self, state: np.ndarray, action: np.ndarray, reward: float, next_state: np.ndarray) -> None:
         self.states.append(state.copy())
         self.actions.append(action.copy())
         self.rewards.append(reward.copy())

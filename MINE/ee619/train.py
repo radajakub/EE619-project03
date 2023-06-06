@@ -48,7 +48,7 @@ def run_episode(env: Environment, policy: GaussianPolicy, replay_buffer: ReplayB
             action, _ = policy.act(to_tensor(state))
         time_step = env.step(action)
         # replay buffer takes state s_t action a_t and time_step with reward r_t+1 and next state s_t+1
-        replay_buffer.add(state, action, time_step.reward, flatten_and_concat(time_step.observation))
+        replay_buffer.push(state, action, time_step.reward, flatten_and_concat(time_step.observation))
         rewards.append(time_step.reward)
     # save rewards to stats
     stats.save_rewards(np.array(rewards))
