@@ -96,7 +96,7 @@ def main(domain: str,
     # define target Q networks and clone the parameters
     Qtargets = [QFunction(state_shape, action_shape) for _ in range(Qnum)]
     for i in range(Qnum):
-        Qtargets[i].clone_weights(Qs[i])
+        Qtargets[i].hard_update(Qs[i])
     # optimizer is not needed as the parameters are updated from the main Q networks
 
     # initialize gaussian policy and set it to train mode
@@ -120,7 +120,7 @@ def main(domain: str,
 
         # update target V function
         for i in range(Qnum):
-            Qtargets[i].update_weights(Qs[i])
+            Qtargets[i].soft_update(Qs[i], tau=tau)
 
 
 if __name__ == "__main__":

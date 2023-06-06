@@ -19,9 +19,9 @@ class QFunction(nn.Module):
         q = self.fc3
         return q
 
-    def clone_weights(self, other: QFunction) -> None:
+    def hard_update(self, other: QFunction) -> None:
         self.load_state_dict(other.state_dict())
 
-    def update_weights(self, other: QFunction, tau: float=0.005) -> None:
-        for param1, param2 in zip(self.parameters(), other.parameters()):
-            param1.data = tau * param2.data + (1 - tau) * param1.data
+    def soft_update(self, other: QFunction, tau: float=0.005) -> None:
+        for target_param, param in zip(self.parameters(), other.parameters()):
+            target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
