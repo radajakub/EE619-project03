@@ -13,7 +13,7 @@ from tqdm import trange
 from agent import flatten_and_concat, GaussianPolicy
 from replay import ReplayBuffer
 from output import Stats, default_save_path
-from value_functions import VFunction, QFunction
+from MINE.ee619.qfunction import QFunction
 
 
 def prod(iterable: Iterable[int]) -> int:
@@ -43,7 +43,9 @@ def run_episode(env: Environment, policy: GaussianPolicy, replay_buffer: ReplayB
     rewards: List[float] = []
     while not time_step.last():
         state = flatten_and_concat(time_step.observation)
-        action = policy.act(state)
+        # do not compute gradient
+        with torch.no_grad():
+            action = policy.act(state)
         time_step = env.step(action)
         # replay buffer takes state s_t action a_t and time_step with reward r_t+1 and next state s_t+1
         replay_buffer.add(state, action, time_step.reward, flatten_and_concat(time_step.observation))
@@ -84,16 +86,20 @@ def main(domain: str,
 
     replay_buffer = ReplayBuffer()
 
-    V = VFunction(state_shape)
-    V_optim = Adam(V.parameters(), lr=learning_rate)
-
-    V_target = VFunction(state_shape)
-    V_target.clone_weights(V)
-
+    # define Q networks
     Qnum = 2
     Qs = [QFunction(state_shape, action_shape) for _ in range(Qnum)]
+    for Q in Qs:
+        Q.train()
     Q_optims = [Adam(Qs[i].paramters(), lr=learning_rate) for i in range(Qnum)]
 
+    # define target Q networks and clone the parameters
+    Qtargets = [QFunction(state_shape, action_shape) for _ in range(Qnum)]
+    for i in range(Qnum):
+        Qtargets[i].clone_weights(Qs[i])
+    # optimizer is not needed as the parameters are updated from the main Q networks
+
+    # initialize gaussian policy and set it to train mode
     pi = GaussianPolicy(state_shape, action_shape, action_loc, action_scale)
     pi.train()
     pi_optim = Adam(pi.parameters(), lr=learning_rate)
@@ -104,23 +110,17 @@ def main(domain: str,
         if not replay_buffer.can_sample():
             continue
 
-        # zero gradients
-        pi_optim.zero_grad()
-        V_optim.zero_grad()
-        for Q_optim in Q_optims:
-            Q_optim.zero_grad()
-
         # sample batch from replay buffer
-        batch = replay_buffer.sample()
-
-        # update V function
+        states, actions, rewards, next_states = replay_buffer.sample()
 
         # update Q functions
+        # sample next action
 
         # update policy pi
 
         # update target V function
-        V_target.update_weights(V, tau)
+        for i in range(Qnum):
+            Qtargets[i].update_weights(Qs[i])
 
 
 if __name__ == "__main__":

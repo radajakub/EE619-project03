@@ -81,7 +81,9 @@ class GaussianPolicy(nn.Module):
 
     def act(self, state: np.ndarray) -> np.ndarray:
         loc, scale = self(to_tensor(state).unsqueeze(0))
-        action = Independent(Normal(loc, scale), 1).sample().squeeze(0).numpy()
+        distribution = Normal(loc, scale)
+        action = Independent(distribution, 1).sample().squeeze(0).numpy()
         # map action
         action = np.tanh(action) * self.action_scale + self.action_loc
-        return action
+        log_prob = distribution.log_prob(action)
+        return action, log_prob

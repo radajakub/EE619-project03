@@ -1,12 +1,6 @@
 from collections import deque
-from typing import NamedTuple
+from typing import NamedTuple, Tuple
 import numpy as np
-
-class Batch(NamedTuple):
-    states: np.ndarray
-    actions: np.ndarray
-    rewards: np.ndarray
-    next_states: np.ndarray
 
 class ReplayBuffer:
     def __init__(self, size: int = 1000000, batch_size: int = 100) -> None:
@@ -29,11 +23,6 @@ class ReplayBuffer:
         return len(self.states) >= self.batch_size
 
     # draw a sample of TimeSteps with the size of batch_size
-    def sample(self) -> Batch:
+    def sample(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         indices = np.random.choice(len(self.states), size=self.batch_size, replace=False)
-        return Batch(
-            states=self.states[indices],
-            actions=self.actions[indices],
-            rewards=self.rewards[indices],
-            next_states=self.next_states[indices]
-        )
+        return self.states[indices], self.actions[indices], self.rewards[indices], self.next_states[indices]
