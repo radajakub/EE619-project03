@@ -27,6 +27,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('-q', action='store_false', dest='log')
     parser.add_argument('--domain', default='walker')
     parser.add_argument('--gamma', type=float, default=0.99)
+    parser.add_argument('--tau', type=float, default=0.005)
     parser.add_argument('--learning-rate', type=float, default=1e-3)
     parser.add_argument('--num-episodes', type=int, default=int(1e4))
     parser.add_argument('--seed', type=int, default=0)
@@ -53,6 +54,7 @@ def run_episode(env: Environment, policy: GaussianPolicy, replay_buffer: ReplayB
 
 def main(domain: str,
          gamma: float,
+         tau: float,
          learning_rate: float,
          log: bool,
          num_episodes: int,
@@ -86,6 +88,7 @@ def main(domain: str,
     V_optim = Adam(V.parameters(), lr=learning_rate)
 
     V_target = VFunction(state_shape)
+    V_target.clone_weights(V)
 
     Qnum = 2
     Qs = [QFunction(state_shape, action_shape) for _ in range(Qnum)]
@@ -117,6 +120,7 @@ def main(domain: str,
         # update policy pi
 
         # update target V function
+        V_target.update_weights(V, tau)
 
 
 if __name__ == "__main__":
