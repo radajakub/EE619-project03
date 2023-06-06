@@ -1,33 +1,23 @@
-from os.path import abspath, dirname, realpath, join, isdir, basename, exists
-from os import listdir, mkdir
+from functools import reduce
+import operator
 from argparse import ArgumentParser
-from collections import deque
-from typing import NamedTuple
-from dm_env import TimeStep
+from typing import Callable, Iterable, List
+from dm_control import suite
+from dm_control.rl.control import Environment
 import numpy as np
+import torch
+from torch.utils.tensorboard import SummaryWriter
+from torch.optim import Adam
+from tqdm import trange
 
-from agent import flatten_and_concat, Policy, QFunction
+from agent import flatten_and_concat, GaussianPolicy
+from replay import ReplayBuffer
+from output import Stats, default_save_path
+from value_functions import VFunction, QFunction
 
-ROOT = dirname(abspath(realpath(__file__)))  # path to the directory
-EXPERIMENTS_FOLDER = 'experiments'
 
-def default_save_path() -> str:
-    parent = dirname(ROOT)
-    experiments = join(parent, EXPERIMENTS_FOLDER)
-    if not exists(experiments):
-        mkdir(experiments)
-    i = 0
-    for filename in listdir(experiments):
-        if isdir(filename):
-            base = basename(filename)
-            tmp = 0
-            try:
-                tmp = int(base)
-            finally:
-                if tmp > i:
-                    i = tmp
-    i += 1
-    return join(experiments, str(i).zfill(2))
+def prod(iterable: Iterable[int]) -> int:
+    return reduce(operator.mul, iterable, 1)
 
 
 def build_argument_parser() -> ArgumentParser:
@@ -45,42 +35,20 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--test-num', type=int, default=10)
     return parser
 
-class Batch(NamedTuple):
-    states: np.ndarray
-    actions: np.ndarray
-    rewards: np.ndarray
-    next_states: np.ndarray
-
-
-class ReplayBuffer:
-    def __init__(self, size: int = 1000000, batch_size: int = 100) -> None:
-        assert (batch_size <= size)
-        self.batch_size = batch_size
-
-        self.states = deque([], maxlen=size)
-        self.actions = deque([], maxlen=size)
-        self.rewards = deque([], maxlen=size)
-        self.next_states = deque([], maxlen=size)
-
-    # add TimeStep into the replay buffer
-    def add(self, state: np.ndarray, action: np.ndarray, time_step: TimeStep) -> None:
-        self.states.append(flatten_and_concat(state.copy()))
-        self.actions.append(action.copy())
-        self.rewards.append(time_step.reward.copy())
-        self.next_states.append(flatten_and_concat(time_step.observation.copy()))
-
-    def can_sample(self) -> bool:
-        return len(self.states) >= self.batch_size
-
-    # draw a sample of TimeSteps with the size of batch_size
-    def sample(self) -> Batch:
-        indices = np.random.choice(len(self.states), size=self.batch_size, replace=False)
-        return Batch(
-            states=self.states[indices],
-            actions=self.actions[indices],
-            rewards=self.rewards[indices],
-            next_states=self.next_states[indices]
-        )
+def run_episode(env: Environment, map_action: Callable[[np.ndarray], np.ndarray], policy: GaussianPolicy, replay_buffer: ReplayBuffer, stats: Stats):
+    # reset the environment (obtain start state)
+    time_step = env.reset()
+    # go through every step and add them to replay buffer
+    rewards: List[float] = []
+    while not time_step.last():
+        state = flatten_and_concat(time_step.observation)
+        action = policy.act(state)
+        time_step = env.step(map_action(action))
+        # replay buffer takes state s_t action a_t and time_step with reward r_t+1 and next state s_t+1
+        replay_buffer.add(state, action, time_step.reward, flatten_and_concat(time_step.observation))
+        rewards.append(time_step.reward)
+    # save rewards to stats
+    stats.save_rewards(np.array(rewards))
 
 
 def main(domain: str,
@@ -93,7 +61,65 @@ def main(domain: str,
          task: str,
          test_every: int,
          test_num: int):
-    pass
+    # init seeds
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    # setup logging utility
+    writer = SummaryWriter() if log else None
+    stats = Stats(num_episodes, 1000, save_path, gamma)
+
+    # init environment and query information
+    env: Environment = suite.load(domain, task, task_kwargs={'random': seed})
+    observation_spec = env.observation_spec()
+    state_shape = np.sum(prod(value.shape) for value in observation_spec.values())
+    action_spec = env.action_spec()
+    action_shape = prod(action_spec.shape)
+    max_action = action_spec.maximum
+    min_action = action_spec.minimum
+    action_loc = (max_action + min_action) / 2
+    action_scale = (max_action - min_action) / 2
+
+    action_map = lambda input_: np.tanh(input_) * action_scale + action_loc
+
+    replay_buffer = ReplayBuffer()
+
+    V = VFunction(state_shape)
+    V_optim = Adam(V.parameters(), lr=learning_rate)
+
+    V_target = VFunction(state_shape)
+
+    Qnum = 2
+    Qs = [QFunction(state_shape, action_shape) for _ in range(Qnum)]
+    Q_optims = [Adam(Qs[i].paramters(), lr=learning_rate) for i in range(Qnum)]
+
+    pi = GaussianPolicy(state_shape, action_shape)
+    pi.train()
+    pi_optim = Adam(pi.parameters(), lr=learning_rate)
+
+    for episode in trange(num_episodes):
+        run_episode(env, action_map, pi, replay_buffer, stats)
+
+        if not replay_buffer.can_sample():
+            continue
+
+        # zero gradients
+        pi_optim.zero_grad()
+        V_optim.zero_grad()
+        for Q_optim in Q_optims:
+            Q_optim.zero_grad()
+
+        # sample batch from replay buffer
+        batch = replay_buffer.sample()
+
+        # update V function
+
+        # update Q functions
+
+        # update policy pi
+
+        # update target V function
+
 
 if __name__ == "__main__":
     main(**vars(build_argument_parser().parse_args()))

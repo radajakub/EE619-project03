@@ -1,11 +1,12 @@
 """Agent for DMControl Walker-Run task."""
 from __future__ import annotations
-from typing import Dict
+from typing import Dict, Tuple
 from os.path import abspath, dirname, realpath
 from dm_env import TimeStep
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
+from torch.distributions import Independent, Normal
 
 
 ROOT = dirname(abspath(realpath(__file__)))  # path to the ee619 directory
@@ -58,28 +59,23 @@ class Agent:
         #   path = join(ROOT, 'model.pt')
         #   self.policy.load_state_dict(torch.load(path))
 
+class GaussianPolicy(nn.Module):
+    def __init__(self, state_dim, action_dim) -> None:
+        super.__init__()
+        self.fc1 = nn.Linear(state_dim, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, action_dim)
+        self.scale = nn.Parameter(torch.zeros(action_dim))
+        torch.nn.init.constant_(self.scale, -0.5)
 
-class QFunction:
-    """
-    Approximate Q function
+    def forward(self, input_: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        loc = torch.tanh(self.fc1(input_))
+        loc = torch.tanh(self.fc2(loc))
+        loc = self.fc3(loc)
+        scale = self.scale.exp().expand_as(loc)
+        return loc, scale
 
-    The network takes state as input and returns value of a given state action pair
-    """
-    def __init__(self, inputs: int, outputs: int) -> None:
-        self.network = nn.Sequential(
-            nn.Linear(inputs, 64),
-            nn.ReLU(),
-            nn.Linear(64, outputs),
-        )
-
-    def clone_params(self, other: QFunction) -> None:
-        self.network.load_state_dict(other.network.state_dict)
-
-    def update_params(self, other: QFunction, rho: float) -> None:
-        assert(rho >= 0 and rho <= 1)
-        new_state = rho * self.network.state_dict + (1 - rho) * other.network.state_dict
-        self.network.load_state_dict(new_state)
-
-class Policy:
-    def __init__(self) -> None:
-        pass
+    def act(self, state: np.ndarray) -> np.ndarray:
+        loc, scale = self(to_tensor(state).unsqueeze(0))
+        action = Independent(Normal(loc, scale), 1).sample().squeeze(0).numpy()
+        return action
