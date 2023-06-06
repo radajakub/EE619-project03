@@ -8,6 +8,7 @@ from dm_control import suite
 from dm_control.rl.control import Environment
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from tqdm import trange
@@ -49,6 +50,10 @@ def main(domain: str,
          task: str,
          test_every: int,
          test_num: int):
+    # TODO: tune or adapt
+    alpha = 0.05
+
+
     # init seeds
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -78,7 +83,7 @@ def main(domain: str,
     Q1_optim = Adam(Q1.parameters(), lr=learning_rate)
     Q2 = QFunction(state_shape, action_shape)
     Q2.train()
-    Q2_optim = Adam(Q1.parameters(), lr=learning_rate)
+    Q2_optim = Adam(Q2.parameters(), lr=learning_rate)
 
     # define target Q networks and clone the parameters
     Q1_target = QFunction(state_shape, action_shape)
@@ -104,7 +109,7 @@ def main(domain: str,
             # make a step
             state = flatten_and_concat(time_step.observation)
             with torch.no_grad():
-                action, _ = pi.act(to_tensor(state))
+                action = pi.act(to_tensor(state))
             time_step = env.step(action)
 
             # save transition to replay buffer
@@ -117,22 +122,48 @@ def main(domain: str,
             if replay_buffer.can_sample():
                 # sample from replay buffer
                 s, a, r, s_ = replay_buffer.sample()
+                s = to_tensor(s)
+                a = to_tensor(a)
+                r = to_tensor(r)
+                s_ = to_tensor(s_)
 
                 # update Q functions
                 # compute targets
                 with torch.no_grad():
-                    a_ = pi.act(to_tensor(s_))
+                    locs, scales = pi(s_)
+                    a_, log_probs = pi.act_with_log_probs(locs, scales)
+                    min_q = torch.minimum(Q1_target(s_, a_), Q2_target(s_, a_)).squeeze(1)
+                    target = r + gamma * (min_q - alpha * log_probs)
+                    target = target.unsqueeze(1)
+
+                Q1_optim.zero_grad()
+                Q1_loss = F.mse_loss(Q1(s, a), target)
+                Q1_loss.backward()
+                Q1_optim.step()
+
+                Q2_optim.zero_grad()
+                Q2_loss = F.mse_loss(Q2(s, a), target)
+                Q2_loss.backward()
+                Q2_optim.step()
 
                 # update policy pi
+                locs, scales = pi(s)
+                at, at_log_probs = pi.act_with_log_probs(locs, scales)
+                min_q = torch.minimum(Q1(s, at), Q2(s, at)).squeeze(1)
+
+                pi_optim.zero_grad()
+                pi_loss = ((alpha * at_log_probs) - min_q).mean()
+                pi_loss.backward()
+                pi_optim.step()
 
                 # update target Q functions
                 Q1_target.soft_update(Q1, tau=tau)
                 Q2_target.soft_update(Q2, tau=tau)
 
                 # save losses
-                # writer.add_scalar('loss/Q1', Q1_loss, updates)
-                # writer.add_scalar('loss/Q2', Q2_loss, updates)
-                # writer.add_scalar('loss/pi', pi_loss, updates)
+                writer.add_scalar('loss/Q1', Q1_loss, updates)
+                writer.add_scalar('loss/Q2', Q2_loss, updates)
+                writer.add_scalar('loss/pi', pi_loss, updates)
                 # writer.add_scalar('temperature', alpha, updates)
                 updates += 1
 
@@ -149,7 +180,7 @@ def main(domain: str,
                 time_step = env.reset()
                 while not time_step.last():
                     with torch.no_grad():
-                        action, _ = pi.act(to_tensor(flatten_and_concat(time_step.observation)))
+                        action = pi.act(to_tensor(flatten_and_concat(time_step.observation)))
                     time_step = env.step(action)
                     rewards.append(time_step.reward)
                 returns.append(np.dot(gammas, np.array(episode_rewards)))

@@ -16,7 +16,7 @@ class QFunction(nn.Module):
         state_action = torch.cat([state, action], dim=1)
         q = F.relu(self.fc1(state_action))
         q = F.relu(self.fc2(q))
-        q = self.fc3
+        q = self.fc3(q)
         return q
 
     def hard_update(self, other: QFunction) -> None:
