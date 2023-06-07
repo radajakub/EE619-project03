@@ -51,8 +51,8 @@ def main(domain: str,
          test_every: int,
          test_num: int,
          temperature: Optional[float]):
-    # TODO: tune or adapt
 
+    print(f'Using temperature: {temperature if temperature is not None else "automatic"}')
 
     # init seeds
     torch.manual_seed(seed)
