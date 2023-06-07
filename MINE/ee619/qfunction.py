@@ -23,5 +23,5 @@ class QFunction(nn.Module):
         self.load_state_dict(other.state_dict())
 
     def soft_update(self, other: QFunction, tau: float=0.005) -> None:
-        for target_param, param in zip(self.parameters(), other.parameters()):
-            target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+        for this_param, other_param in zip(self.parameters(), other.parameters()):
+            this_param.data.copy_(tau * other_param.data + (1 - tau) * this_param.data)
