@@ -20,10 +20,6 @@ from temperature import ConstAlpha, AutotuningAlpha
 
 ROOT = dirname(abspath(realpath(__file__)))  # path to the directory
 
-def prod(iterable: Iterable[int]) -> int:
-    return reduce(operator.mul, iterable, 1)
-
-
 def build_argument_parser() -> ArgumentParser:
     """Returns an argument parser for main."""
     parser = ArgumentParser()
@@ -62,9 +58,9 @@ def main(domain: str,
     # init environment and query information
     env: Environment = suite.load(domain, task, task_kwargs={'random': seed})
     observation_spec = env.observation_spec()
-    state_shape = np.sum([prod(value.shape) for value in observation_spec.values()])
+    state_shape = np.sum([np.prod(value.shape, dtype=int) for value in observation_spec.values()])
     action_spec = env.action_spec()
-    action_shape = prod(action_spec.shape)
+    action_shape = np.prod(action_spec.shape, dtype=int)
     max_action = action_spec.maximum
     min_action = action_spec.minimum
     action_loc = (max_action + min_action) / 2
@@ -171,7 +167,7 @@ def main(domain: str,
 
         episode_return = np.dot(gammas, np.array(episode_rewards))
         writer.add_scalar('return/train', episode_return, episode)
-        print(f"Episode: {episode}, steps: {step_count}, episode steps: {len(episode_rewards)}, return: {round(episode_return, 2)}")
+        print(f"Episode: {episode}, steps: {step_count}, return: {round(episode_return, 2)}")
 
 
         # testing
