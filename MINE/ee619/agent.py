@@ -1,7 +1,7 @@
 """Agent for DMControl Walker-Run task."""
 from __future__ import annotations
-from typing import Dict, Tuple
-from os.path import abspath, dirname, realpath
+from typing import Dict, Optional, Tuple
+from os.path import abspath, dirname, realpath, join
 from dm_env import TimeStep
 import numpy as np
 import torch
@@ -27,7 +27,8 @@ def to_tensor(array: np.ndarray) -> torch.Tensor:
 class Agent:
     """Agent for a Walker2DBullet environment."""
     def __init__(self) -> None:
-        pass
+        self.policy = GaussianPolicy(24, 6)
+        self.path = join(ROOT, 'trained_policy.pt')
 
     def act(self, time_step: TimeStep) -> np.ndarray:
         """Returns the action to take for the current time-step.
@@ -48,28 +49,24 @@ class Agent:
         # It can be done by using the `flatten_and_concat` function, e.g.,
         #   observation = flatten_and_concat(time_step.observation)
         #   logits = self.policy(torch.as_tensor(observation))
-        step_type = time_step.step_type
-        observation = flatten_and_concat(time_step.observation)
-        reward = time_step.reward
-        discount = time_step.discount
-        return np.ones(6)
+        state = flatten_and_concat(time_step.observation)
+        action = self.policy.act(state)
+        return action
 
     def load(self):
         """Loads network parameters if there are any."""
-        # Example:
-        #   path = join(ROOT, 'model.pt')
-        #   self.policy.load_state_dict(torch.load(path))
+        self.policy.load_state_dict(torch.load(self.path))
 
 class GaussianPolicy(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int, action_loc: float, action_scale: float, hidden_dim: int=64) -> None:
+    def __init__(self, state_dim: int, action_dim: int, action_loc: Optional[float]=None, action_scale: Optional[float]=None, hidden_dim: int=256) -> None:
         super().__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.loc_layer = nn.Linear(hidden_dim, action_dim)
         self.scale_layer = nn.Linear(hidden_dim, action_dim)
 
-        self.action_loc = action_loc
-        self.action_scale = action_scale
+        self.action_loc = action_loc if action_loc is not None else np.zeros(action_dim)
+        self.action_scale = action_scale if action_scale is not None else np.ones(action_dim)
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         val = F.relu(self.fc1(state))

@@ -27,7 +27,6 @@ def prod(iterable: Iterable[int]) -> int:
 def build_argument_parser() -> ArgumentParser:
     """Returns an argument parser for main."""
     parser = ArgumentParser()
-    parser.add_argument('-q', action='store_false', dest='log')
     parser.add_argument('--domain', default='walker')
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--tau', type=float, default=0.005)
@@ -44,7 +43,6 @@ def main(domain: str,
          gamma: float,
          tau: float,
          learning_rate: float,
-         log: bool,
          num_episodes: int,
          seed: int,
          task: str,
@@ -94,7 +92,7 @@ def main(domain: str,
     Q2_target.hard_update(Q2)
 
     # initialize gaussian policy and set it to train mode
-    pi = GaussianPolicy(state_shape, action_shape, action_loc, action_scale)
+    pi = GaussianPolicy(state_shape, action_shape, action_loc=action_loc, action_scale=action_scale)
     pi.train()
     pi_optim = Adam(pi.parameters(), lr=learning_rate)
 
@@ -183,8 +181,9 @@ def main(domain: str,
                 rewards = []
                 time_step = env.reset()
                 while not time_step.last():
-                    with torch.no_grad():
-                        action = pi.act(to_tensor(flatten_and_concat(time_step.observation)))
+                    pi.eval()
+                    action = pi.act(to_tensor(flatten_and_concat(time_step.observation)))
+                    pi.train()
                     time_step = env.step(action)
                     rewards.append(time_step.reward)
                 returns.append(np.dot(gammas, np.array(episode_rewards)))
@@ -193,6 +192,8 @@ def main(domain: str,
             print(f"Test in episode: {episode}, average return: {round(avg_return, 2)}")
 
     env.close()
+
+    torch.save(pi.state_dict(), 'trained_policy.pt')
 
 
 if __name__ == "__main__":

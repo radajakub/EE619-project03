@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from copy import deepcopy
 
 class QFunction(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim=64) -> None:
+    def __init__(self, state_dim: int, action_dim: int, hidden_dim=256) -> None:
         super().__init__()
         joint_dim = state_dim + action_dim
         self.fc1 = nn.Linear(joint_dim, hidden_dim)
