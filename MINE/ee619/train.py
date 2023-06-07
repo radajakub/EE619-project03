@@ -3,7 +3,7 @@ from datetime import datetime
 from functools import reduce
 import operator
 from argparse import ArgumentParser
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 from dm_control import suite
 from dm_control.rl.control import Environment
 import numpy as np
@@ -16,6 +16,7 @@ from tqdm import trange
 from agent import flatten_and_concat, GaussianPolicy, to_tensor
 from replay import ReplayBuffer
 from qfunction import QFunction
+from temperature import ConstAlpha, AutotuningAlpha
 
 ROOT = dirname(abspath(realpath(__file__)))  # path to the directory
 
@@ -26,7 +27,6 @@ def prod(iterable: Iterable[int]) -> int:
 def build_argument_parser() -> ArgumentParser:
     """Returns an argument parser for main."""
     parser = ArgumentParser()
-    parser.add_argument('--save_path', type=str)
     parser.add_argument('-q', action='store_false', dest='log')
     parser.add_argument('--domain', default='walker')
     parser.add_argument('--gamma', type=float, default=0.99)
@@ -37,6 +37,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--task', default='run')
     parser.add_argument('--test-every', type=int, default=1000)
     parser.add_argument('--test-num', type=int, default=10)
+    parser.add_argument('--temperature', type=float, default=None)
     return parser
 
 def main(domain: str,
@@ -45,13 +46,12 @@ def main(domain: str,
          learning_rate: float,
          log: bool,
          num_episodes: int,
-         save_path: str,
          seed: int,
          task: str,
          test_every: int,
-         test_num: int):
+         test_num: int,
+         temperature: Optional[float]):
     # TODO: tune or adapt
-    alpha = 0.05
 
 
     # init seeds
@@ -73,6 +73,8 @@ def main(domain: str,
     action_scale = (max_action - min_action) / 2
 
     replay_buffer = ReplayBuffer()
+
+    alpha = AutotuningAlpha(action_shape, learning_rate) if temperature is None else ConstAlpha(temperature)
 
     # define weight vector for episode returns
     gammas = np.fromfunction(lambda i: np.power(gamma, i), (int(1e3),), dtype=float)
@@ -133,7 +135,7 @@ def main(domain: str,
                     locs, scales = pi(s_)
                     a_, log_probs = pi.act_with_log_probs(locs, scales)
                     min_q = torch.minimum(Q1_target(s_, a_), Q2_target(s_, a_)).squeeze(1)
-                    target = r + gamma * (min_q - alpha * log_probs)
+                    target = r + gamma * (min_q - alpha.get() * log_probs)
                     target = target.unsqueeze(1)
 
                 Q1_optim.zero_grad()
@@ -152,9 +154,11 @@ def main(domain: str,
                 min_q = torch.minimum(Q1(s, at), Q2(s, at)).squeeze(1)
 
                 pi_optim.zero_grad()
-                pi_loss = ((alpha * at_log_probs) - min_q).mean()
+                pi_loss = ((alpha.get() * at_log_probs) - min_q).mean()
                 pi_loss.backward()
                 pi_optim.step()
+
+                alpha.update(at_log_probs)
 
                 # update target Q functions
                 Q1_target.soft_update(Q1, tau=tau)
@@ -164,7 +168,7 @@ def main(domain: str,
                 writer.add_scalar('loss/Q1', Q1_loss, updates)
                 writer.add_scalar('loss/Q2', Q2_loss, updates)
                 writer.add_scalar('loss/pi', pi_loss, updates)
-                # writer.add_scalar('temperature', alpha, updates)
+                writer.add_scalar('temperature', alpha.get(), updates)
                 updates += 1
 
         episode_return = np.dot(gammas, np.array(episode_rewards))
