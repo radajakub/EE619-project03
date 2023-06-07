@@ -46,7 +46,15 @@ def main(domain: str,
          test_num: int,
          temperature: Optional[float]):
 
-    print(f'Using temperature: {temperature if temperature is not None else "automatic"}')
+
+    print(f'===== HYPERPARAMTERS =====')
+    print(f'Domain and task: {domain} - {task}')
+    print(f'Discount factor gamma: {gamma}')
+    print(f'Target update weight tau: {tau}')
+    print(f'Learning rate: {learning_rate}')
+    print(f'Number of episodes: {num_episodes}')
+    print(f'Random seed: {seed}')
+    print(f'Temperature alpha: {temperature if temperature is not None else "automatic"}')
 
     # init seeds
     torch.manual_seed(seed)
