@@ -67,6 +67,7 @@ class GaussianPolicy(nn.Module):
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.loc_layer = nn.Linear(hidden_dim, action_dim)
         self.scale_layer = nn.Linear(hidden_dim, action_dim)
+
         self.action_loc = action_loc
         self.action_scale = action_scale
 
@@ -85,7 +86,7 @@ class GaussianPolicy(nn.Module):
         action = np.tanh(action) * self.action_scale + self.action_loc
         return action
 
-    def act_with_log_probs(self, locs, scales) -> torch.tensor:
+    def act_with_log_probs(self, locs, scales) -> Tuple[torch.Tensor, torch.Tensor]:
         distribution = Independent(Normal(locs, scales), 1)
         actions = distribution.sample()
         log_probs = distribution.log_prob(actions)
