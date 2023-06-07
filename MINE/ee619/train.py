@@ -66,12 +66,11 @@ def main(domain: str,
     action_loc = (max_action + min_action) / 2
     action_scale = (max_action - min_action) / 2
 
+    # replay buffer to store seen samples from the environment
     replay_buffer = ReplayBuffer()
 
+    # define temperature class
     alpha = AutotuningAlpha(action_shape, learning_rate) if temperature is None else ConstAlpha(temperature)
-
-    # define weight vector for episode returns
-    gammas = np.fromfunction(lambda i: np.power(gamma, i), (int(1e3),), dtype=float)
 
     # define Q networks
     Q1 = QFunction(state_shape, action_shape)
@@ -116,7 +115,7 @@ def main(domain: str,
 
             # update weights
             if replay_buffer.can_sample():
-                # sample from replay buffer
+                # sample from replay buffer and convert to tensors
                 s, a, r, s_ = replay_buffer.sample()
                 s = to_tensor(s)
                 a = to_tensor(a)
@@ -133,12 +132,12 @@ def main(domain: str,
                     target = target.unsqueeze(1)
 
                 Q1_optim.zero_grad()
-                Q1_loss = F.mse_loss(Q1(s, a), target)
+                Q1_loss = F.mse_loss(Q1(s, a), target.detach())
                 Q1_loss.backward()
                 Q1_optim.step()
 
                 Q2_optim.zero_grad()
-                Q2_loss = F.mse_loss(Q2(s, a), target)
+                Q2_loss = F.mse_loss(Q2(s, a), target.detach())
                 Q2_loss.backward()
                 Q2_optim.step()
 
@@ -165,7 +164,8 @@ def main(domain: str,
                 writer.add_scalar('temperature', alpha.get(), updates)
                 updates += 1
 
-        episode_return = np.dot(gammas, np.array(episode_rewards))
+        # episode_return = np.dot(gammas, np.array(episode_rewards))
+        episode_return = np.sum(episode_rewards)
         writer.add_scalar('return/train', episode_return, episode)
         print(f"Episode: {episode}, steps: {step_count}, return: {round(episode_return, 2)}")
 
@@ -182,7 +182,7 @@ def main(domain: str,
                     pi.train()
                     time_step = env.step(action)
                     rewards.append(time_step.reward)
-                returns.append(np.dot(gammas, np.array(episode_rewards)))
+                returns.append(np.sum(episode_rewards))
             avg_return = np.average(returns)
             writer.add_scalar('average_return/test', avg_return, episode)
             print(f"Test in episode: {episode}, average return: {round(avg_return, 2)}")
