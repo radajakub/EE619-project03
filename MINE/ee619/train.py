@@ -28,11 +28,13 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--tau', type=float, default=0.005)
     parser.add_argument('--learning-rate', type=float, default=1e-4)
     parser.add_argument('--num-episodes', type=int, default=int(1e4))
-    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--task', default='run')
-    parser.add_argument('--test-every', type=int, default=1000)
+    parser.add_argument('--test-every', type=int, default=int(1e3))
     parser.add_argument('--test-num', type=int, default=10)
     parser.add_argument('--temperature', type=float, default=None)
+    parser.add_argument('--replay-size', type=int, default=int(1e6))
+    parser.add_argument('--batch-size', type=int, default=int(1e2))
     return parser
 
 def main(domain: str,
@@ -44,8 +46,20 @@ def main(domain: str,
          task: str,
          test_every: int,
          test_num: int,
-         temperature: Optional[float]):
+         temperature: Optional[float],
+         replay_size: int,
+         batch_size: int):
 
+    print(f'===== HYPERPARAMTERS =====')
+    print(f'Domain and task: {domain} - {task}')
+    print(f'Discount factor gamma: {gamma}')
+    print(f'Target update weight tau: {tau}')
+    print(f'Learning rate: {learning_rate}')
+    print(f'Number of episodes: {num_episodes}')
+    print(f'Random seed: {seed}')
+    print(f'Temperature alpha: {temperature if temperature is not None else "automatic"}')
+    print(f'Replay buffer size: {replay_size}')
+    print(f'Replay buffer batch size: {batch_size}')
 
     # init seeds
     torch.manual_seed(seed)
@@ -66,7 +80,7 @@ def main(domain: str,
     action_scale = (max_action - min_action) / 2
 
     # replay buffer to store seen samples from the environment
-    replay_buffer = ReplayBuffer()
+    replay_buffer = ReplayBuffer(size=replay_size, batch_size=batch_size)
 
     # define temperature class
     alpha = AutotuningAlpha(action_shape, learning_rate) if temperature is None else ConstAlpha(temperature)
@@ -92,17 +106,6 @@ def main(domain: str,
 
     updates = 0
     step_count = 0
-
-    print(f'===== HYPERPARAMTERS =====')
-    print(f'Domain and task: {domain} - {task}')
-    print(f'Discount factor gamma: {gamma}')
-    print(f'Target update weight tau: {tau}')
-    print(f'Learning rate: {learning_rate}')
-    print(f'Number of episodes: {num_episodes}')
-    print(f'Random seed: {seed}')
-    print(f'Temperature alpha: {temperature if temperature is not None else "automatic"}')
-    print(f'Replay buffer size: {replay_buffer.size}')
-    print(f'Replay buffer batch size: {replay_buffer.batch_size}')
 
     for episode in range(num_episodes):
         # start new episode in the environment
