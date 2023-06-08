@@ -34,6 +34,9 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--replay-size', type=int, default=int(1e6))
     parser.add_argument('--batch-size', type=int, default=int(1e2))
     parser.add_argument('--save-intermediate', type=bool, default=False)
+    parser.add_argument('--q-hidden', type=int, default=64)
+    parser.add_argument('--pi-hidden', type=int, default=64)
+    parser.add_nonlinearity('--pi-nonlinearity', type=str, default='tanh')
     return parser
 
 def main(domain: str,
@@ -48,7 +51,10 @@ def main(domain: str,
          temperature: Optional[float],
          replay_size: int,
          batch_size: int,
-         save_intermediate: bool):
+         save_intermediate: bool,
+         q_hidden: int,
+         pi_hidden: int,
+         pi_nonlinearity: str):
 
     print(f'===== HYPERPARAMTERS =====')
     print(f'Domain and task: {domain} - {task}')
@@ -61,6 +67,9 @@ def main(domain: str,
     print(f'Replay buffer size: {replay_size}')
     print(f'Replay buffer batch size: {batch_size}')
     print(f'Save intermediate: {save_intermediate}')
+    print(f'Q hidden neurons: {q_hidden}')
+    print(f'PI hidden neurons: {pi_hidden}')
+    print(f'PI non-linearity: {pi_nonlinearity}')
 
     # init seeds
     torch.manual_seed(seed)
@@ -90,21 +99,21 @@ def main(domain: str,
     alpha = AutotuningAlpha(action_shape, learning_rate) if temperature is None else ConstAlpha(temperature)
 
     # define Q networks
-    Q1 = QFunction(state_shape, action_shape)
+    Q1 = QFunction(state_shape, action_shape, hidden_dim=q_hidden)
     Q1.train()
     Q1_optim = Adam(Q1.parameters(), lr=learning_rate)
-    Q2 = QFunction(state_shape, action_shape)
+    Q2 = QFunction(state_shape, action_shape, hidden_dim=q_hidden)
     Q2.train()
     Q2_optim = Adam(Q2.parameters(), lr=learning_rate)
 
     # define target Q networks and clone the parameters
-    Q1_target = QFunction(state_shape, action_shape)
+    Q1_target = QFunction(state_shape, action_shape, hidden_dim=q_hidden)
     Q1_target.hard_update(Q1)
-    Q2_target = QFunction(state_shape, action_shape)
+    Q2_target = QFunction(state_shape, action_shape, hidden_dim=q_hidden)
     Q2_target.hard_update(Q2)
 
     # initialize gaussian policy and set it to train mode
-    pi = GaussianPolicy(state_shape, action_shape, action_loc=action_loc, action_scale=action_scale)
+    pi = GaussianPolicy(state_shape, action_shape, action_loc=action_loc, action_scale=action_scale, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
     pi.train()
     pi_optim = Adam(pi.parameters(), lr=learning_rate)
 
@@ -145,7 +154,9 @@ def main(domain: str,
                     locs, scales = pi(batch_s_)
                     a_ = pi.sample(locs, scales)
                     distribution = Independent(Normal(locs, scales), 1)
-                    log_probs = distribution.log_prob(a_)
+                    log_probs_mu = distribution.log_prob(a_)
+                    sub_term = torch.sum(torch.log(1 - torch.pow(torch.tanh(log_probs_mu), 2)))
+                    log_probs = log_probs_mu - sub_term
                     min_q = torch.minimum(Q1_target(batch_s_, a_), Q2_target(batch_s_, a_)).squeeze(1)
                     target = batch_r + gamma * (min_q - alpha.get() * log_probs)
                     target = target.unsqueeze(1)

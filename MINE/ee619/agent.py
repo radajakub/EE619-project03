@@ -57,7 +57,7 @@ class Agent:
         self.policy.load_state_dict(torch.load(self.path))
 
 class GaussianPolicy(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int, action_loc: Optional[float]=None, action_scale: Optional[float]=None, hidden_dim: int=256) -> None:
+    def __init__(self, state_dim: int, action_dim: int, action_loc: Optional[float]=None, action_scale: Optional[float]=None, hidden_dim: int=64, nonlinearity: str='tanh') -> None:
         super().__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
@@ -66,7 +66,12 @@ class GaussianPolicy(nn.Module):
         self.scale = nn.Parameter(torch.zeros(action_dim))
         torch.nn.init.constant_(self.scale, -0.5)
 
-        self.activation = nn.Tanh()
+        if nonlinearity == 'tanh':
+            self.activation = nn.Tanh()
+        elif nonlinearity == 'relu':
+            self.activation = nn.ReLU()
+        else:
+            raise TypeError("The nonlinearity was specified wrongly - choose 'relu' or 'tanh'!")
 
         self.action_loc = action_loc if action_loc is not None else np.zeros(action_dim)
         self.action_scale = action_scale if action_scale is not None else np.ones(action_dim)
