@@ -35,6 +35,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--temperature', type=float, default=None)
     parser.add_argument('--replay-size', type=int, default=int(1e6))
     parser.add_argument('--batch-size', type=int, default=int(1e2))
+    parser.add_argument('--save-intermediate', type=bool, default=False)
     return parser
 
 def main(domain: str,
@@ -48,7 +49,8 @@ def main(domain: str,
          test_num: int,
          temperature: Optional[float],
          replay_size: int,
-         batch_size: int):
+         batch_size: int,
+         save_intermediate: bool):
 
     print(f'===== HYPERPARAMTERS =====')
     print(f'Domain and task: {domain} - {task}')
@@ -60,6 +62,7 @@ def main(domain: str,
     print(f'Temperature alpha: {temperature if temperature is not None else "automatic"}')
     print(f'Replay buffer size: {replay_size}')
     print(f'Replay buffer batch size: {batch_size}')
+    print(f'Save intermediate: {save_intermediate}')
 
     # init seeds
     torch.manual_seed(seed)
@@ -182,6 +185,8 @@ def main(domain: str,
         writer.add_scalar('return/train', episode_return, episode)
         print(f"Episode: {episode}, steps: {step_count}, return: {round(episode_return, 2)}")
 
+        if save_intermediate:
+            torch.save(pi.state_dict(), 'trained_policy_intermediate.pt')
 
         # testing
         if episode % test_every == 0:
