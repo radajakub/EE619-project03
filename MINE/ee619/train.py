@@ -196,7 +196,7 @@ def main(domain: str,
         print(f"Episode: {episode}, steps: {step_count}, return: {round(episode_return, 2)}")
 
         if save_intermediate:
-            torch.save(pi.state_dict(), 'trained_policy_intermediate.pt')
+            torch.save(pi.state_dict(), 'trained_model_intermediate.pt')
 
         # testing
         if episode % test_every == 0:
@@ -217,7 +217,7 @@ def main(domain: str,
 
     env.close()
 
-    torch.save(pi.state_dict(), 'trained_policy.pt')
+    torch.save(pi.state_dict(), 'trained_model.pt')
 
 
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ class Agent:
     """Agent for a Walker2DBullet environment."""
     def __init__(self) -> None:
         self.policy = GaussianPolicy(24, 6)
-        self.path = join(ROOT, 'trained_policy.pt')
+        self.path = join(ROOT, 'trained_model.pt')
 
     def act(self, time_step: TimeStep) -> np.ndarray:
         """Returns the action to take for the current time-step.
