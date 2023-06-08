@@ -24,7 +24,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--domain', default='walker')
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--tau', type=float, default=0.005)
-    parser.add_argument('--learning-rate', type=float, default=1e-4)
+    parser.add_argument('--learning-rate', type=float, default=3e-4)
     parser.add_argument('--num-episodes', type=int, default=int(1e4))
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--task', default='run')
@@ -32,10 +32,10 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--test-num', type=int, default=10)
     parser.add_argument('--temperature', type=float, default=None)
     parser.add_argument('--replay-size', type=int, default=int(1e6))
-    parser.add_argument('--batch-size', type=int, default=int(1e2))
+    parser.add_argument('--batch-size', type=int, default=256)
     parser.add_argument('--save-intermediate', type=bool, default=False)
-    parser.add_argument('--q-hidden', type=int, default=64)
-    parser.add_argument('--pi-hidden', type=int, default=64)
+    parser.add_argument('--q-hidden', type=int, default=256)
+    parser.add_argument('--pi-hidden', type=int, default=256)
     parser.add_argument('--pi-nonlinearity', type=str, default='tanh')
     return parser
 
@@ -137,65 +137,65 @@ def main(domain: str,
 
             episode_rewards.append(time_step.reward)
 
-            # update weights
-            if replay_buffer.can_sample():
-                # sample from replay buffer and convert to tensors
-                batch_s, batch_a, batch_r, batch_s_ = replay_buffer.sample()
-                batch_s = to_tensor(batch_s)
-                batch_a = to_tensor(batch_a)
-                batch_r = to_tensor(batch_r)
-                batch_s_ = to_tensor(batch_s_)
+        # update weights
+        if replay_buffer.can_sample():
+            # sample from replay buffer and convert to tensors
+            batch_s, batch_a, batch_r, batch_s_ = replay_buffer.sample()
+            batch_s = to_tensor(batch_s)
+            batch_a = to_tensor(batch_a)
+            batch_r = to_tensor(batch_r)
+            batch_s_ = to_tensor(batch_s_)
 
-                # update Q functions
-                # compute targets
-                with torch.no_grad():
-                    locs, scales = pi(batch_s_)
-                    a_ = pi.sample(locs, scales)
-                    distribution = Independent(Normal(locs, scales), 1)
-                    log_probs = distribution.log_prob(a_)
-                    min_q = torch.minimum(Q1_target(batch_s_, a_), Q2_target(batch_s_, a_)).squeeze(1)
-                    target = batch_r + gamma * (min_q - alpha.get() * log_probs)
-                    target = target.unsqueeze(1)
-
-                Q1_optim.zero_grad()
-                Q1_loss = F.mse_loss(Q1(batch_s, batch_a), target)
-                Q1_loss.backward()
-                Q1_optim.step()
-
-                Q2_optim.zero_grad()
-                Q2_loss = F.mse_loss(Q2(batch_s, batch_a), target)
-                Q2_loss.backward()
-                Q2_optim.step()
-
-                # update policy pi
-                locs, scales = pi(batch_s)
-                a1 = pi.sample(locs, scales)
+            # update Q functions
+            # compute targets
+            with torch.no_grad():
+                locs, scales = pi(batch_s_)
+                a_ = pi.sample(locs, scales)
                 distribution = Independent(Normal(locs, scales), 1)
-                at_log_probs = distribution.log_prob(a1)
-                min_q = torch.minimum(Q1(batch_s, a1), Q2(batch_s, a1)).squeeze(1)
+                log_probs = distribution.log_prob(a_)
+                min_q = torch.minimum(Q1_target(batch_s_, a_), Q2_target(batch_s_, a_)).squeeze(1)
+                target = batch_r + gamma * (min_q - alpha.get() * log_probs)
+                target = target.unsqueeze(1)
 
-                pi_optim.zero_grad()
-                pi_loss = ((alpha.get() * at_log_probs) - min_q).mean()
-                pi_loss.backward()
-                pi_optim.step()
+            Q1_optim.zero_grad()
+            Q1_loss = F.mse_loss(Q1(batch_s, batch_a), target)
+            Q1_loss.backward()
+            Q1_optim.step()
 
-                # update alpha parameter
-                locs, scales = pi(batch_s)
-                a2 = pi.sample(locs, scales)
-                distribution = Independent(Normal(locs, scales), 1)
-                at_log_probs = distribution.log_prob(a2)
-                alpha.update(at_log_probs)
+            Q2_optim.zero_grad()
+            Q2_loss = F.mse_loss(Q2(batch_s, batch_a), target)
+            Q2_loss.backward()
+            Q2_optim.step()
 
-                # update target Q functions
-                Q1_target.soft_update(Q1, tau=tau)
-                Q2_target.soft_update(Q2, tau=tau)
+            # update policy pi
+            locs, scales = pi(batch_s)
+            a1 = pi.sample(locs, scales)
+            distribution = Independent(Normal(locs, scales), 1)
+            at_log_probs = distribution.log_prob(a1)
+            min_q = torch.minimum(Q1(batch_s, a1), Q2(batch_s, a1)).squeeze(1)
 
-                # save losses
-                writer.add_scalar('loss/Q1', Q1_loss, updates)
-                writer.add_scalar('loss/Q2', Q2_loss, updates)
-                writer.add_scalar('loss/pi', pi_loss, updates)
-                writer.add_scalar('temperature', alpha.get(), updates)
-                updates += 1
+            pi_optim.zero_grad()
+            pi_loss = ((alpha.get() * at_log_probs) - min_q).mean()
+            pi_loss.backward()
+            pi_optim.step()
+
+            # update alpha parameter
+            locs, scales = pi(batch_s)
+            a2 = pi.sample(locs, scales)
+            distribution = Independent(Normal(locs, scales), 1)
+            at_log_probs = distribution.log_prob(a2)
+            alpha.update(at_log_probs)
+
+            # update target Q functions
+            Q1_target.soft_update(Q1, tau=tau)
+            Q2_target.soft_update(Q2, tau=tau)
+
+            # save losses
+            writer.add_scalar('loss/Q1', Q1_loss, updates)
+            writer.add_scalar('loss/Q2', Q2_loss, updates)
+            writer.add_scalar('loss/pi', pi_loss, updates)
+            writer.add_scalar('temperature', alpha.get(), updates)
+            updates += 1
 
         # episode_return = np.dot(gammas, np.array(episode_rewards))
         episode_return = np.sum(episode_rewards)
