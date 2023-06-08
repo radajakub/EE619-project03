@@ -80,13 +80,9 @@ class GaussianPolicy(nn.Module):
 
     def act(self, state: np.ndarray) -> np.ndarray:
         loc, scale = self(to_tensor(state).unsqueeze(0))
-        action = Independent(Normal(loc, scale), 1).sample().squeeze(0).numpy()
-        action = np.tanh(action) * self.action_scale + self.action_loc
-        return action
+        action = self.sample(loc, scale)
+        return action.numpy()
 
-    def act_with_log_probs(self, locs, scales) -> Tuple[torch.Tensor, torch.Tensor]:
-        distribution = Independent(Normal(locs, scales), 1)
-        actions = distribution.sample()
-        log_probs = distribution.log_prob(actions)
-        actions = torch.tanh(actions) * self.action_scale + self.action_loc
-        return actions.float(), log_probs
+    def sample(self, locs, scales):
+        action = Independent(Normal(locs, scales), 1).sample().squeeze(0)
+        return action

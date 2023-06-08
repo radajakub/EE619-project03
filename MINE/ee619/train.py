@@ -1,9 +1,7 @@
 from os.path import dirname, abspath, realpath, join
-from datetime import datetime
 from functools import reduce
-import operator
 from argparse import ArgumentParser
-from typing import Iterable, List, Optional
+from typing import List, Optional
 from dm_control import suite
 from dm_control.rl.control import Environment
 import numpy as np
@@ -11,7 +9,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
-from tqdm import trange
+from torch.distributions import Independent, Normal
 
 from agent import flatten_and_concat, GaussianPolicy, to_tensor
 from replay import ReplayBuffer
@@ -82,6 +80,9 @@ def main(domain: str,
     action_loc = (max_action + min_action) / 2
     action_scale = (max_action - min_action) / 2
 
+    def map_action(input_: np.ndarray) -> np.ndarray:
+        return np.tanh(input_) * action_scale + action_loc
+
     # replay buffer to store seen samples from the environment
     replay_buffer = ReplayBuffer(size=replay_size, batch_size=batch_size)
 
@@ -121,7 +122,7 @@ def main(domain: str,
             state = flatten_and_concat(time_step.observation)
             with torch.no_grad():
                 action = pi.act(to_tensor(state))
-            time_step = env.step(action)
+            time_step = env.step(map_action(action.copy()))
 
             # save transition to replay buffer
             replay_buffer.push(state, action, time_step.reward, flatten_and_concat(time_step.observation))
@@ -132,41 +133,50 @@ def main(domain: str,
             # update weights
             if replay_buffer.can_sample():
                 # sample from replay buffer and convert to tensors
-                s, a, r, s_ = replay_buffer.sample()
-                s = to_tensor(s)
-                a = to_tensor(a)
-                r = to_tensor(r)
-                s_ = to_tensor(s_)
+                batch_s, batch_a, batch_r, batch_s_ = replay_buffer.sample()
+                batch_s = to_tensor(batch_s)
+                batch_a = to_tensor(batch_a)
+                batch_r = to_tensor(batch_r)
+                batch_s_ = to_tensor(batch_s_)
 
                 # update Q functions
                 # compute targets
                 with torch.no_grad():
-                    locs, scales = pi(s_)
-                    a_, log_probs = pi.act_with_log_probs(locs, scales)
-                    min_q = torch.minimum(Q1_target(s_, a_), Q2_target(s_, a_)).squeeze(1)
-                    target = r + gamma * (min_q - alpha.get() * log_probs)
+                    locs, scales = pi(batch_s_)
+                    a_ = pi.sample(locs, scales)
+                    distribution = Independent(Normal(locs, scales), 1)
+                    log_probs = distribution.log_prob(a_)
+                    min_q = torch.minimum(Q1_target(batch_s_, a_), Q2_target(batch_s_, a_)).squeeze(1)
+                    target = batch_r + gamma * (min_q - alpha.get() * log_probs)
                     target = target.unsqueeze(1)
 
                 Q1_optim.zero_grad()
-                Q1_loss = F.mse_loss(Q1(s, a), target.detach())
+                Q1_loss = F.mse_loss(Q1(batch_s, batch_a), target.detach())
                 Q1_loss.backward()
                 Q1_optim.step()
 
                 Q2_optim.zero_grad()
-                Q2_loss = F.mse_loss(Q2(s, a), target.detach())
+                Q2_loss = F.mse_loss(Q2(batch_s, batch_a), target.detach())
                 Q2_loss.backward()
                 Q2_optim.step()
 
                 # update policy pi
-                locs, scales = pi(s)
-                at, at_log_probs = pi.act_with_log_probs(locs, scales)
-                min_q = torch.minimum(Q1(s, at), Q2(s, at)).squeeze(1)
+                locs, scales = pi(batch_s)
+                a1 = pi.sample(locs, scales)
+                distribution = Independent(Normal(locs, scales), 1)
+                at_log_probs = distribution.log_prob(a1)
+                min_q = torch.minimum(Q1(batch_s, a1), Q2(batch_s, a1)).squeeze(1)
 
                 pi_optim.zero_grad()
                 pi_loss = ((alpha.get() * at_log_probs) - min_q).mean()
                 pi_loss.backward()
                 pi_optim.step()
 
+                # update alpha parameter
+                locs, scales = pi(batch_s)
+                a2 = pi.sample(locs, scales)
+                distribution = Independent(Normal(locs, scales), 1)
+                at_log_probs = distribution.log_prob(a2)
                 alpha.update(at_log_probs)
 
                 # update target Q functions
@@ -198,7 +208,7 @@ def main(domain: str,
                     pi.eval()
                     action = pi.act(to_tensor(flatten_and_concat(time_step.observation)))
                     pi.train()
-                    time_step = env.step(action)
+                    time_step = env.step(map_action(action))
                     rewards.append(time_step.reward)
                 returns.append(np.sum(episode_rewards))
             avg_return = np.average(returns)
