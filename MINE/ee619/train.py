@@ -36,7 +36,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--save-intermediate', type=bool, default=False)
     parser.add_argument('--q-hidden', type=int, default=64)
     parser.add_argument('--pi-hidden', type=int, default=64)
-    parser.add_nonlinearity('--pi-nonlinearity', type=str, default='tanh')
+    parser.add_argument('--pi-nonlinearity', type=str, default='tanh')
     return parser
 
 def main(domain: str,
@@ -118,7 +118,6 @@ def main(domain: str,
     pi_optim = Adam(pi.parameters(), lr=learning_rate)
 
     updates = 0
-    step_count = 0
 
     for episode in range(num_episodes):
         # start new episode in the environment
@@ -136,7 +135,6 @@ def main(domain: str,
             # save transition to replay buffer
             replay_buffer.push(state, action, time_step.reward, flatten_and_concat(time_step.observation))
 
-            step_count += 1
             episode_rewards.append(time_step.reward)
 
             # update weights
@@ -154,20 +152,18 @@ def main(domain: str,
                     locs, scales = pi(batch_s_)
                     a_ = pi.sample(locs, scales)
                     distribution = Independent(Normal(locs, scales), 1)
-                    log_probs_mu = distribution.log_prob(a_)
-                    sub_term = torch.sum(torch.log(1 - torch.pow(torch.tanh(log_probs_mu), 2)))
-                    log_probs = log_probs_mu - sub_term
+                    log_probs = distribution.log_prob(a_)
                     min_q = torch.minimum(Q1_target(batch_s_, a_), Q2_target(batch_s_, a_)).squeeze(1)
                     target = batch_r + gamma * (min_q - alpha.get() * log_probs)
                     target = target.unsqueeze(1)
 
                 Q1_optim.zero_grad()
-                Q1_loss = F.mse_loss(Q1(batch_s, batch_a), target.detach())
+                Q1_loss = F.mse_loss(Q1(batch_s, batch_a), target)
                 Q1_loss.backward()
                 Q1_optim.step()
 
                 Q2_optim.zero_grad()
-                Q2_loss = F.mse_loss(Q2(batch_s, batch_a), target.detach())
+                Q2_loss = F.mse_loss(Q2(batch_s, batch_a), target)
                 Q2_loss.backward()
                 Q2_optim.step()
 
@@ -204,7 +200,7 @@ def main(domain: str,
         # episode_return = np.dot(gammas, np.array(episode_rewards))
         episode_return = np.sum(episode_rewards)
         writer.add_scalar('return/train', episode_return, episode)
-        print(f"Episode: {episode}, steps: {step_count}, return: {round(episode_return, 2)}")
+        print(f"Episode: {episode}, return: {round(episode_return, 2)}")
 
         if save_intermediate:
             torch.save(pi.state_dict(), 'trained_model_intermediate.pt')
