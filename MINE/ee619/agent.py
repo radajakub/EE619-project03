@@ -6,7 +6,6 @@ from dm_env import TimeStep
 import numpy as np
 import torch
 from torch import nn
-import torch.nn.functional as F
 from torch.distributions import Independent, Normal
 
 
@@ -65,12 +64,14 @@ class GaussianPolicy(nn.Module):
         self.loc_layer = nn.Linear(hidden_dim, action_dim)
         self.scale_layer = nn.Linear(hidden_dim, action_dim)
 
+        self.activation = nn.Tanh()
+
         self.action_loc = action_loc if action_loc is not None else np.zeros(action_dim)
         self.action_scale = action_scale if action_scale is not None else np.ones(action_dim)
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        val = F.relu(self.fc1(state))
-        val = F.relu(self.fc2(val))
+        val = self.activation(self.fc1(state))
+        val = self.activation(self.fc2(val))
 
         loc = self.loc_layer(val)
         scale = self.scale_layer(val).exp().expand_as(loc)
