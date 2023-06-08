@@ -6,6 +6,7 @@ class ReplayBuffer:
     def __init__(self, size: int = 1000000, batch_size: int = 100) -> None:
         assert (batch_size <= size)
         self.batch_size = batch_size
+        self.size = size
 
         self.states = deque([], maxlen=size)
         self.actions = deque([], maxlen=size)

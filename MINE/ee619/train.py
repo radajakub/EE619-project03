@@ -47,15 +47,6 @@ def main(domain: str,
          temperature: Optional[float]):
 
 
-    print(f'===== HYPERPARAMTERS =====')
-    print(f'Domain and task: {domain} - {task}')
-    print(f'Discount factor gamma: {gamma}')
-    print(f'Target update weight tau: {tau}')
-    print(f'Learning rate: {learning_rate}')
-    print(f'Number of episodes: {num_episodes}')
-    print(f'Random seed: {seed}')
-    print(f'Temperature alpha: {temperature if temperature is not None else "automatic"}')
-
     # init seeds
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -101,6 +92,17 @@ def main(domain: str,
 
     updates = 0
     step_count = 0
+
+    print(f'===== HYPERPARAMTERS =====')
+    print(f'Domain and task: {domain} - {task}')
+    print(f'Discount factor gamma: {gamma}')
+    print(f'Target update weight tau: {tau}')
+    print(f'Learning rate: {learning_rate}')
+    print(f'Number of episodes: {num_episodes}')
+    print(f'Random seed: {seed}')
+    print(f'Temperature alpha: {temperature if temperature is not None else "automatic"}')
+    print(f'Replay buffer size: {replay_buffer.size}')
+    print(f'Replay buffer batch size: {replay_buffer.batch_size}')
 
     for episode in range(num_episodes):
         # start new episode in the environment
