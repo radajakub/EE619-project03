@@ -216,7 +216,7 @@ def main(domain: str,
                     pi.train()
                     time_step = env.step(map_action(action))
                     rewards.append(time_step.reward)
-                returns.append(np.sum(returns))
+                returns.append(np.sum(rewards))
             avg_return = np.average(returns)
 
             if save_best and avg_return < best_return:
