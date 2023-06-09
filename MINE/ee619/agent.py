@@ -50,9 +50,7 @@ class GaussianPolicy(nn.Module):
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.loc_layer = nn.Linear(hidden_dim, action_dim)
-        # self.scale_layer = nn.Linear(hidden_dim, action_dim)
-        self.scale = nn.Parameter(torch.zeros(action_dim))
-        torch.nn.init.constant_(self.scale, -0.5)
+        self.scale_layer = nn.Linear(hidden_dim, action_dim)
 
         torch.nn.init.xavier_uniform_(self.fc1.weight)
         torch.nn.init.xavier_uniform_(self.fc2.weight)
@@ -70,7 +68,9 @@ class GaussianPolicy(nn.Module):
         val = self.activation(self.fc2(val))
 
         loc = self.loc_layer(val)
-        scale = self.scale.exp().expand_as(loc)
+        scale = self.scale_layer(val).exp()
+        scale = torch.clamp(scale, min=-20, max=2)
+        scale = scale.exp()
 
         return loc, scale
 

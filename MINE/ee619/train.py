@@ -73,6 +73,8 @@ def main(domain: str,
     print(f'Q hidden neurons: {q_hidden}')
     print(f'PI hidden neurons: {pi_hidden}')
     print(f'PI non-linearity: {pi_nonlinearity}')
+    print(f'Every {test_every} steps perform {test_num} tests')
+
     # init seeds
     torch.manual_seed(seed)
     np.random.seed(seed)
