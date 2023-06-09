@@ -39,6 +39,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--pi-hidden', type=int, default=256)
     parser.add_argument('--pi-nonlinearity', type=str, default='tanh')
     parser.add_argument('--pi-type', type=str, default='layered')
+    parser.add_argument('--save-interval', type=int, default=10000)
     return parser
 
 def main(domain: str,
@@ -58,7 +59,8 @@ def main(domain: str,
          q_hidden: int,
          pi_hidden: int,
          pi_nonlinearity: str,
-         pi_type: str):
+         pi_type: str,
+         save_interval: int):
 
     assert (pi_type in ['layered', 'parametrized'])
 
@@ -78,6 +80,7 @@ def main(domain: str,
     print(f'PI hidden neurons: {pi_hidden}')
     print(f'PI non-linearity: {pi_nonlinearity}')
     print(f'Every {test_every} steps perform {test_num} tests')
+    print(f'Save policy every {save_interval} steps')
 
     # init seeds
     torch.manual_seed(seed)
@@ -242,6 +245,10 @@ def main(domain: str,
 
             writer.add_scalar('average_return/test', avg_return, episode)
             print(f"Test in episode: {episode}, average return: {round(avg_return, 2)}")
+
+        if episode % save_interval == 0 and episode != 0:
+            torch.save(pi.state_dict(), f'trained_model_{episode}.pt')
+
 
     env.close()
 
