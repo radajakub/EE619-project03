@@ -36,18 +36,6 @@ class Agent:
             time_step: a namedtuple with four fields step_type, reward,
                 discount, and observation.
         """
-        # You can access each member of time_step by time_step.[name], a
-        # for example, time_step.reward or time_step.observation.
-        # You may also check if the current time-step is the last one
-        # of the episode, by calling the method time_step.last().
-        # The return value will be True if it is the last time-step,
-        # and False otherwise.
-        # Note that the observation is given as an OrderedDict of
-        # NumPy arrays, so you would need to convert it into a
-        # single NumPy array before you feed it into your network.
-        # It can be done by using the `flatten_and_concat` function, e.g.,
-        #   observation = flatten_and_concat(time_step.observation)
-        #   logits = self.policy(torch.as_tensor(observation))
         state = flatten_and_concat(time_step.observation)
         action = self.policy.act(state)
         return action
