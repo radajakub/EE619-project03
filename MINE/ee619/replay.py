@@ -38,10 +38,10 @@ class ReplayBuffer:
     # draw a sample of TimeSteps with the size of batch_size
     def sample(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         indices = np.random.choice(len(self.states), size=self.batch_size, replace=False)
-        temp_states = to_tensor(self.states)
-        temp_actions = to_tensor(self.actions)
+        temp_states = to_tensor(np.array(self.states))
+        temp_actions = to_tensor(np.array(self.actions))
         temp_rewards = to_tensor(self.rewards)
-        temp_next_states = to_tensor(self.next_states)
+        temp_next_states = to_tensor(np.array(self.next_states))
         temp_signals = to_tensor(self.dones)
 
         return Batch(temp_states[indices], temp_actions[indices], temp_rewards[indices], temp_next_states[indices], temp_signals[indices])
