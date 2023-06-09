@@ -159,30 +159,28 @@ def main(domain: str,
                 distribution = Independent(Normal(locs, scales), 1)
                 a_, log_probs = pi.squash(a_, distribution.log_prob(a_))
                 min_q = torch.minimum(Q1_target(batch_s_, a_), Q2_target(batch_s_, a_)).squeeze(1)
-                target = batch_r + gamma * (min_q - alpha.get() * log_probs)
-                target = target.unsqueeze(1)
+                target = batch_r + gamma * (min_q - alpha.get() * log_probs).unsqueeze(1)
 
             Q1_optim.zero_grad()
-            # Q1_loss = F.mse_loss(Q1(batch_s, batch_a), target)
-            Q1_loss = (0.5 * (Q1(batch_s, batch_a) - target)**2).mean()
+            Q1_loss = ((Q1(batch_s, batch_a) - target).pow(2)).mean()
             Q1_loss.backward()
             Q1_optim.step()
 
             Q2_optim.zero_grad()
-            # Q2_loss = F.mse_loss(Q2(batch_s, batch_a), target)
-            Q2_loss = (0.5 * (Q2(batch_s, batch_a) - target)**2).mean()
+            Q2_loss = ((Q2(batch_s, batch_a) - target).pow(2)).mean()
             Q2_loss.backward()
             Q2_optim.step()
 
             # update policy pi
             locs, scales = pi(batch_s)
+            # rsample should be the reparametrization trick
             a1 = pi.rsample(locs, scales)
             distribution = Independent(Normal(locs, scales), 1)
-            a1, at_log_probs = pi.squash(a1, distribution.log_prob(a1))
+            a1, a1_log_probs = pi.squash(a1, distribution.log_prob(a1))
             min_q = torch.minimum(Q1(batch_s, a1), Q2(batch_s, a1)).squeeze(1)
 
             pi_optim.zero_grad()
-            pi_loss = ((alpha.get() * at_log_probs) - min_q).mean()
+            pi_loss = -(min_q - alpha.get() * a1_log_probs).mean()
             pi_loss.backward()
             pi_optim.step()
 

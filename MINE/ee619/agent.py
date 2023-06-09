@@ -54,6 +54,10 @@ class GaussianPolicy(nn.Module):
         self.scale = nn.Parameter(torch.zeros(action_dim))
         torch.nn.init.constant_(self.scale, -0.5)
 
+        torch.nn.init.xavier_uniform_(self.fc1.weight)
+        torch.nn.init.xavier_uniform_(self.fc2.weight)
+        torch.nn.init.xavier_uniform_(self.loc_layer.weight)
+
         if nonlinearity == 'tanh':
             self.activation = nn.Tanh()
         elif nonlinearity == 'relu':

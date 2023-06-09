@@ -12,6 +12,10 @@ class QFunction(nn.Module):
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.fc3 = nn.Linear(hidden_dim, 1)
 
+        torch.nn.init.xavier_uniform_(self.fc1.weight)
+        torch.nn.init.xavier_uniform_(self.fc2.weight)
+        torch.nn.init.xavier_uniform_(self.fc3.weight)
+
     def forward(self, state, action):
         state_action = torch.cat([state, action], dim=1)
         q = F.relu(self.fc1(state_action))
