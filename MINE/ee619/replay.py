@@ -20,7 +20,7 @@ class ReplayBuffer:
         self.actions.append(action.copy())
         self.rewards.append(reward.copy())
         self.next_states.append(next_state.copy())
-        self.dones.append(signal.copy())
+        self.dones.append(signal)
 
     def can_sample(self) -> bool:
         return len(self.states) >= self.batch_size
