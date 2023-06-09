@@ -73,10 +73,20 @@ class GaussianPolicy(nn.Module):
     def act(self, state: np.ndarray) -> np.ndarray:
         loc, scale = self(to_tensor(state).unsqueeze(0))
         action = self.sample(loc, scale)
-        return action.numpy()
+        return action.detach().numpy()
+
+    # squas action so it is in interval (-1, 1)
+    def squash(self, action, log_prob):
+        regularizer = torch.sum(torch.log(1 - torch.tanh(action) ** 2 + 1e-6), dim=1)
+        return torch.tanh(action), log_prob - regularizer
+
 
     def sample(self, locs, scales):
         action = Independent(Normal(locs, scales), 1).sample().squeeze(0)
+        return action
+
+    def rsample(self, locs, scales):
+        action = Independent(Normal(locs, scales), 1).rsample().squeeze(0)
         return action
 
     def hard_update(self, other: GaussianPolicy) -> None:

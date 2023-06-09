@@ -24,6 +24,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--domain', default='walker')
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--tau', type=float, default=0.005)
+    parser.add_argument('--target-update', type=int, default=1)
     parser.add_argument('--learning-rate', type=float, default=1e-4)
     parser.add_argument('--num-episodes', type=int, default=int(1e4))
     parser.add_argument('--seed', type=int, default=42)
@@ -42,6 +43,7 @@ def build_argument_parser() -> ArgumentParser:
 def main(domain: str,
          gamma: float,
          tau: float,
+         target_update: int,
          learning_rate: float,
          num_episodes: int,
          seed: int,
@@ -60,6 +62,7 @@ def main(domain: str,
     print(f'Domain and task: {domain} - {task}')
     print(f'Discount factor gamma: {gamma}')
     print(f'Target update weight tau: {tau}')
+    print(f'Target update every: {target_update} steps')
     print(f'Learning rate: {learning_rate}')
     print(f'Number of episodes: {num_episodes}')
     print(f'Random seed: {seed}')
@@ -70,7 +73,6 @@ def main(domain: str,
     print(f'Q hidden neurons: {q_hidden}')
     print(f'PI hidden neurons: {pi_hidden}')
     print(f'PI non-linearity: {pi_nonlinearity}')
-
     # init seeds
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -155,26 +157,28 @@ def main(domain: str,
                 locs, scales = pi(batch_s_)
                 a_ = pi.sample(locs, scales)
                 distribution = Independent(Normal(locs, scales), 1)
-                log_probs = distribution.log_prob(a_)
+                a_, log_probs = pi.squash(a_, distribution.log_prob(a_))
                 min_q = torch.minimum(Q1_target(batch_s_, a_), Q2_target(batch_s_, a_)).squeeze(1)
                 target = batch_r + gamma * (min_q - alpha.get() * log_probs)
                 target = target.unsqueeze(1)
 
             Q1_optim.zero_grad()
-            Q1_loss = F.mse_loss(Q1(batch_s, batch_a), target)
+            # Q1_loss = F.mse_loss(Q1(batch_s, batch_a), target)
+            Q1_loss = (0.5 * (Q1(batch_s, batch_a) - target)**2).mean()
             Q1_loss.backward()
             Q1_optim.step()
 
             Q2_optim.zero_grad()
-            Q2_loss = F.mse_loss(Q2(batch_s, batch_a), target)
+            # Q2_loss = F.mse_loss(Q2(batch_s, batch_a), target)
+            Q2_loss = (0.5 * (Q2(batch_s, batch_a) - target)**2).mean()
             Q2_loss.backward()
             Q2_optim.step()
 
             # update policy pi
             locs, scales = pi(batch_s)
-            a1 = pi.sample(locs, scales)
+            a1 = pi.rsample(locs, scales)
             distribution = Independent(Normal(locs, scales), 1)
-            at_log_probs = distribution.log_prob(a1)
+            a1, at_log_probs = pi.squash(a1, distribution.log_prob(a1))
             min_q = torch.minimum(Q1(batch_s, a1), Q2(batch_s, a1)).squeeze(1)
 
             pi_optim.zero_grad()
@@ -183,15 +187,17 @@ def main(domain: str,
             pi_optim.step()
 
             # update alpha parameter
-            locs, scales = pi(batch_s)
-            a2 = pi.sample(locs, scales)
-            distribution = Independent(Normal(locs, scales), 1)
-            at_log_probs = distribution.log_prob(a2)
-            alpha.update(at_log_probs)
+            if temperature is None:
+                locs, scales = pi(batch_s)
+                a2 = pi.sample(locs, scales)
+                distribution = Independent(Normal(locs, scales), 1)
+                a2, at_log_probs = pi.squash(a2, distribution.log_prob(a2))
+                alpha.update(at_log_probs)
 
             # update target Q functions
-            Q1_target.soft_update(Q1, tau=tau)
-            Q2_target.soft_update(Q2, tau=tau)
+            if episode % target_update == 0:
+                Q1_target.soft_update(Q1, tau=tau)
+                Q2_target.soft_update(Q2, tau=tau)
 
             # save losses
             writer.add_scalar('loss/Q1', Q1_loss, updates)
