@@ -45,7 +45,7 @@ class Agent:
         self.policy.load_state_dict(torch.load(self.path))
 
 class GaussianPolicy(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int=256, nonlinearity: str='tanh') -> None:
+    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int=64, nonlinearity: str='tanh') -> None:
         super().__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
@@ -78,3 +78,6 @@ class GaussianPolicy(nn.Module):
     def sample(self, locs, scales):
         action = Independent(Normal(locs, scales), 1).sample().squeeze(0)
         return action
+
+    def hard_update(self, other: GaussianPolicy) -> None:
+        self.load_state_dict(other.state_dict())

@@ -24,16 +24,16 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--domain', default='walker')
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--tau', type=float, default=0.005)
-    parser.add_argument('--learning-rate', type=float, default=3e-4)
+    parser.add_argument('--learning-rate', type=float, default=1e-4)
     parser.add_argument('--num-episodes', type=int, default=int(1e4))
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--task', default='run')
-    parser.add_argument('--test-every', type=int, default=int(1e3))
+    parser.add_argument('--test-every', type=int, default=int(1e2))
     parser.add_argument('--test-num', type=int, default=10)
     parser.add_argument('--temperature', type=float, default=None)
     parser.add_argument('--replay-size', type=int, default=int(1e6))
     parser.add_argument('--batch-size', type=int, default=256)
-    parser.add_argument('--save-intermediate', type=bool, default=False)
+    parser.add_argument('--save-best', type=bool, default=True)
     parser.add_argument('--q-hidden', type=int, default=256)
     parser.add_argument('--pi-hidden', type=int, default=256)
     parser.add_argument('--pi-nonlinearity', type=str, default='tanh')
@@ -51,7 +51,7 @@ def main(domain: str,
          temperature: Optional[float],
          replay_size: int,
          batch_size: int,
-         save_intermediate: bool,
+         save_best: bool,
          q_hidden: int,
          pi_hidden: int,
          pi_nonlinearity: str):
@@ -66,7 +66,7 @@ def main(domain: str,
     print(f'Temperature alpha: {temperature if temperature is not None else "automatic"}')
     print(f'Replay buffer size: {replay_size}')
     print(f'Replay buffer batch size: {batch_size}')
-    print(f'Save intermediate: {save_intermediate}')
+    print(f'Save best: {save_best}')
     print(f'Q hidden neurons: {q_hidden}')
     print(f'PI hidden neurons: {pi_hidden}')
     print(f'PI non-linearity: {pi_nonlinearity}')
@@ -113,16 +113,19 @@ def main(domain: str,
     Q2_target.hard_update(Q2)
 
     # initialize gaussian policy and set it to train mode
-    pi = GaussianPolicy(state_shape, action_shape, action_loc=action_loc, action_scale=action_scale, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
+    pi = GaussianPolicy(state_shape, action_shape, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
     pi.train()
     pi_optim = Adam(pi.parameters(), lr=learning_rate)
 
     updates = 0
 
+    best_return = -1
+    best_pi = GaussianPolicy(state_shape, action_shape, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
+
     for episode in range(num_episodes):
         # start new episode in the environment
         time_step = env.reset()
-        episode_rewards: List[float] = []
+        episode_return = 0
 
         # rollout episode
         while not time_step.last():
@@ -135,7 +138,7 @@ def main(domain: str,
             # save transition to replay buffer
             replay_buffer.push(state, action, time_step.reward, flatten_and_concat(time_step.observation))
 
-            episode_rewards.append(time_step.reward)
+            episode_return += time_step.reward
 
         # update weights
         if replay_buffer.can_sample():
@@ -198,12 +201,8 @@ def main(domain: str,
             updates += 1
 
         # episode_return = np.dot(gammas, np.array(episode_rewards))
-        episode_return = np.sum(episode_rewards)
         writer.add_scalar('return/train', episode_return, episode)
         print(f"Episode: {episode}, return: {round(episode_return, 2)}")
-
-        if save_intermediate:
-            torch.save(pi.state_dict(), 'trained_model_intermediate.pt')
 
         # testing
         if episode % test_every == 0:
@@ -217,14 +216,21 @@ def main(domain: str,
                     pi.train()
                     time_step = env.step(map_action(action))
                     rewards.append(time_step.reward)
-                returns.append(np.sum(episode_rewards))
+                returns.append(np.sum(returns))
             avg_return = np.average(returns)
+
+            if save_best and avg_return < best_return:
+                best_return = avg_return
+                best_pi.hard_update(pi)
+
             writer.add_scalar('average_return/test', avg_return, episode)
             print(f"Test in episode: {episode}, average return: {round(avg_return, 2)}")
 
     env.close()
 
     torch.save(pi.state_dict(), 'trained_model.pt')
+    if save_best:
+        torch.save(best_pi.state_dict, 'traind_model_best.pt')
 
 
 if __name__ == "__main__":
