@@ -152,20 +152,22 @@ def main(domain: str,
             with torch.no_grad():
                 action = pi.act(to_tensor(state))
             time_step = env.step(map_action(action.copy()))
+            done = 1 if time_step.last() else 0
 
             # save transition to replay buffer
-            replay_buffer.push(state, action, time_step.reward, flatten_and_concat(time_step.observation))
+            replay_buffer.push(state, action, time_step.reward, flatten_and_concat(time_step.observation), done)
 
             episode_return += time_step.reward
 
         # update weights
         if replay_buffer.can_sample():
             # sample from replay buffer and convert to tensors
-            batch_s, batch_a, batch_r, batch_s_ = replay_buffer.sample()
+            batch_s, batch_a, batch_r, batch_s_, batch_d = replay_buffer.sample()
             batch_s = to_tensor(batch_s)
             batch_a = to_tensor(batch_a)
             batch_r = to_tensor(batch_r)
             batch_s_ = to_tensor(batch_s_)
+            batch_d = to_tensor(batch_d)
 
             # update Q functions
             # compute targets
@@ -175,7 +177,7 @@ def main(domain: str,
                 distribution = Independent(Normal(locs, scales), 1)
                 a_, log_probs = pi.squash(a_, distribution.log_prob(a_))
                 min_q = torch.minimum(Q1_target(batch_s_, a_), Q2_target(batch_s_, a_)).squeeze(1)
-                target = batch_r + gamma * (min_q - alpha.get() * log_probs).unsqueeze(1)
+                target = batch_r + gamma * (1 - batch_d) * (min_q - alpha.get() * log_probs).unsqueeze(1)
 
             Q1_optim.zero_grad()
             Q1_loss = ((Q1(batch_s, batch_a) - target).pow(2)).mean()
