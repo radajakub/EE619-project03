@@ -29,7 +29,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--task', default='run')
     parser.add_argument('--test-every', type=int, default=int(1e2))
-    parser.add_argument('--test-num', type=int, default=10)
+    parser.add_argument('--test-num', type=int, default=100)
     parser.add_argument('--temperature', type=float, default=None)
     parser.add_argument('--replay-size', type=int, default=int(1e6))
     parser.add_argument('--batch-size', type=int, default=256)
