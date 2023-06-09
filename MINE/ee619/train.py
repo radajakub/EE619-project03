@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from torch.distributions import Independent, Normal
 
-from agent import flatten_and_concat, GaussianPolicy, to_tensor
+from agent import flatten_and_concat, GaussianPolicyLayered, GaussianPolicyParametrized, to_tensor
 from replay import ReplayBuffer
 from qfunction import QFunction
 from temperature import ConstAlpha, AutotuningAlpha
@@ -38,6 +38,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--q-hidden', type=int, default=256)
     parser.add_argument('--pi-hidden', type=int, default=256)
     parser.add_argument('--pi-nonlinearity', type=str, default='tanh')
+    parser.add_argument('--pi-type', type=str, default='layered')
     return parser
 
 def main(domain: str,
@@ -56,7 +57,10 @@ def main(domain: str,
          save_best: bool,
          q_hidden: int,
          pi_hidden: int,
-         pi_nonlinearity: str):
+         pi_nonlinearity: str,
+         pi_type: str):
+
+    assert (pi_type in ['layered', 'parametrized'])
 
     print(f'===== HYPERPARAMTERS =====')
     print(f'Domain and task: {domain} - {task}')
@@ -117,14 +121,21 @@ def main(domain: str,
     Q2_target.hard_update(Q2)
 
     # initialize gaussian policy and set it to train mode
-    pi = GaussianPolicy(state_shape, action_shape, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
+    if pi_type == 'layered':
+        pi = GaussianPolicyLayered(state_shape, action_shape, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
+    else:
+        pi = GaussianPolicyParametrized(state_shape, action_shape, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
+
     pi.train()
     pi_optim = Adam(pi.parameters(), lr=learning_rate)
 
     updates = 0
 
     best_return = -1
-    best_pi = GaussianPolicy(state_shape, action_shape, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
+    if pi_type == 'layered':
+        best_pi = GaussianPolicyLayered(state_shape, action_shape, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
+    else:
+        best_pi = GaussianPolicyParametrized(state_shape, action_shape, hidden_dim=pi_hidden, nonlinearity=pi_nonlinearity)
 
     for episode in range(num_episodes):
         # start new episode in the environment
