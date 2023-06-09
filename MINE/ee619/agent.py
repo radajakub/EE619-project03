@@ -1,12 +1,14 @@
 """Agent for DMControl Walker-Run task."""
 from __future__ import annotations
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 from os.path import abspath, dirname, realpath, join
 from dm_env import TimeStep
 import numpy as np
 import torch
 from torch import nn
-from torch.distributions import Independent, Normal
+import torch.nn.functional as F
+from torch.distributions import Normal
+from copy import deepcopy
 
 
 ROOT = dirname(abspath(realpath(__file__)))  # path to the ee619 directory
@@ -25,11 +27,8 @@ def to_tensor(array: np.ndarray) -> torch.Tensor:
 
 class Agent:
     """Agent for a Walker2DBullet environment."""
-    def __init__(self, policy_type='layered') -> None:
-        if policy_type == 'layered':
-            self.policy = GaussianPolicyLayered(24, 6, hidden_dim=256)
-        else:
-            self.policy = GaussianPolicyParametrized(24, 6, hidden_dim=256)
+    def __init__(self) -> None:
+        self.policy = GaussianPolicy(24, 6, hidden_dim=256)
         self.path = join(ROOT, 'trained_model.pt')
 
     def act(self, time_step: TimeStep) -> np.ndarray:
@@ -40,20 +39,27 @@ class Agent:
                 discount, and observation.
         """
         state = flatten_and_concat(time_step.observation)
-        action = self.policy.act(state)
+        # consider only means of actions, don't explore during evaluation
+        action = self.policy.act_deterministic(state)
         return action
 
     def load(self):
         """Loads network parameters if there are any."""
         self.policy.load_state_dict(torch.load(self.path))
 
-class GaussianPolicyLayered(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int=64, nonlinearity: str='tanh') -> None:
+class GaussianPolicy(nn.Module):
+    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int=256, nonlinearity: str='relu', max_action: float=1.0) -> None:
         super().__init__()
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.hidden_dim = hidden_dim
+        self.nonlinearity = nonlinearity
+        self.max_action = max_action
+
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.loc_layer = nn.Linear(hidden_dim, action_dim)
-        self.scale_layer = nn.Linear(hidden_dim, action_dim)
+        self.log_sig_layer = nn.Linear(hidden_dim, action_dim)
 
         torch.nn.init.xavier_uniform_(self.fc1.weight)
         torch.nn.init.xavier_uniform_(self.fc2.weight)
@@ -66,87 +72,46 @@ class GaussianPolicyLayered(nn.Module):
         else:
             raise TypeError("The nonlinearity was specified wrongly - choose 'relu' or 'tanh'!")
 
+        self.max_action = max_action
+
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        # backpropagate through the net
         val = self.activation(self.fc1(state))
         val = self.activation(self.fc2(val))
 
-        loc = self.loc_layer(val)
-        scale = self.scale_layer(val).exp()
-        scale = torch.clamp(scale, min=-20, max=2)
-        scale = scale.exp()
+        mu = self.loc_layer(val)
+        log_sig = self.log_sig_layer(val)
+        log_sig = torch.clamp(log_sig, min=-20, max=2)
+        sig = torch.exp(log_sig)
 
-        return loc, scale
+        return mu, sig
 
-    def act(self, state: np.ndarray) -> np.ndarray:
-        loc, scale = self(to_tensor(state).unsqueeze(0))
-        action = self.sample(loc, scale)
-        return action.detach().numpy()
-
-    # squas action so it is in interval (-1, 1)
-    def squash(self, action, log_prob):
-        regularizer = torch.sum(torch.log(1 - torch.tanh(action) ** 2 + 1e-6), dim=1)
-        return torch.tanh(action), log_prob - regularizer
-
-
-    def sample(self, locs, scales):
-        action = Independent(Normal(locs, scales), 1).sample().squeeze(0)
-        return action
-
-    def rsample(self, locs, scales):
-        action = Independent(Normal(locs, scales), 1).rsample().squeeze(0)
-        return action
-
-    def hard_update(self, other: GaussianPolicyLayered) -> None:
-        self.load_state_dict(other.state_dict())
-
-class GaussianPolicyParametrized(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int=64, nonlinearity: str='tanh') -> None:
-        super().__init__()
-        self.fc1 = nn.Linear(state_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.loc_layer = nn.Linear(hidden_dim, action_dim)
-        # self.scale_layer = nn.Linear(hidden_dim, action_dim)
-        self.scale = nn.Parameter(torch.zeros(action_dim))
-        torch.nn.init.constant_(self.scale, -0.5)
-
-        torch.nn.init.xavier_uniform_(self.fc1.weight)
-        torch.nn.init.xavier_uniform_(self.fc2.weight)
-        torch.nn.init.xavier_uniform_(self.loc_layer.weight)
-
-        if nonlinearity == 'tanh':
-            self.activation = nn.Tanh()
-        elif nonlinearity == 'relu':
-            self.activation = nn.ReLU()
-        else:
-            raise TypeError("The nonlinearity was specified wrongly - choose 'relu' or 'tanh'!")
-
-    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        val = self.activation(self.fc1(state))
-        val = self.activation(self.fc2(val))
-
-        loc = self.loc_layer(val)
-        scale = self.scale.exp().expand_as(loc)
-
-        return loc, scale
+    def act_deterministic(self, state: np.ndarray) -> np.ndarray:
+        mu, _ = self(to_tensor(state).unsqueeze(0))
+        return mu
 
     def act(self, state: np.ndarray) -> np.ndarray:
-        loc, scale = self(to_tensor(state).unsqueeze(0))
-        action = self.sample(loc, scale)
-        return action.detach().numpy()
+        mu, sig = self(to_tensor(state).unsqueeze(0))
+
+        distribution = Normal(mu, sig)
+        action = distribution.rsample()
+
+        return self.squash(action, distribution)
 
     # squas action so it is in interval (-1, 1)
-    def squash(self, action, log_prob):
-        regularizer = torch.sum(torch.log(1 - torch.tanh(action) ** 2 + 1e-6), dim=1)
-        return torch.tanh(action), log_prob - regularizer
+    def squash(self, action, distribution):
+        # compute log probabilities (fixed by stable version from OpenAI)
+        log_prob = distribution.log_prob(action).sum(axis=-1)
+        log_prob -= torch.sum(2*(np.log(2) - action - F.softplus(-2 * action)), dim=1)
+        squashed_scaled = self.max_action * torch.tanh(action)
 
+        return squashed_scaled, log_prob
 
-    def sample(self, locs, scales):
-        action = Independent(Normal(locs, scales), 1).sample().squeeze(0)
-        return action
+    def hard_update(self, other: GaussianPolicy) -> None:
+        self.load_state_dict(deepcopy(other.state_dict()))
 
-    def rsample(self, locs, scales):
-        action = Independent(Normal(locs, scales), 1).rsample().squeeze(0)
-        return action
-
-    def hard_update(self, other: GaussianPolicyParametrized) -> None:
-        self.load_state_dict(other.state_dict())
+    def clone(self, trainable=False) -> GaussianPolicy:
+        new_pi = GaussianPolicy(self.state_dim, self.action_dim, self.hidden_dim, self.nonlinearity, self.max_action)
+        new_pi.load_state_dict(deepcopy(self.state_dict))
+        new_pi.train(trainable)
+        return new_pi
