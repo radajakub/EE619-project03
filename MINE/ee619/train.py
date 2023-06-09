@@ -97,7 +97,7 @@ def main(domain: str,
     # initialize replay buffer
     replay_buffer = ReplayBuffer(size=replay_size, batch_size=batch_size)
 
-    sac = SAC(state_shape, action_shape, max_action, gamma, tau, learning_rate, temperature, replay_size, batch_size, q_hidden, pi_hidden, pi_nonlinearity)
+    sac = SAC(state_shape, action_shape, max_action, gamma, tau, learning_rate, temperature, q_hidden, pi_hidden, pi_nonlinearity)
 
     updates = 0
     steps = num_episodes * steps_per_episode
@@ -115,6 +115,7 @@ def main(domain: str,
             action = np.random.uniform(action_spec.minimum, action_spec.maximum, action_spec.shape)
         else:
             action = sac.pi.act(to_tensor(state))
+            exit(0)
 
         # make a step with the environment
         time_step = env.step(action)
@@ -128,9 +129,9 @@ def main(domain: str,
 
         replay_buffer.push(state, action, reward, next_state, done)
 
-        if time_step.end():
-            writer.add_scalar('return/train', episode_return, step % steps_per_episode)
-            print(f"Episode: {step % steps_per_episode}, return: {round(episode_return, 2)}")
+        if time_step.last():
+            writer.add_scalar('return/train', episode_return, step // steps_per_episode)
+            print(f"Episode: {step // steps_per_episode}, return: {round(episode_return, 2)}")
             env.reset()
             episode_length = 0
             episode_return = 0
@@ -164,11 +165,11 @@ def main(domain: str,
                     time_step = test_env.step(action)
                     total_return += time_step.reward
             avg_return = total_return / test_num
-            writer.add_scalar('average_return/test', avg_return, step % steps_per_episode)
-            print(f"Test in episode: {step % steps_per_episode}, average return: {round(avg_return, 2)}")
+            writer.add_scalar('average_return/test', avg_return, step // steps_per_episode)
+            print(f"Test in episode: {step // steps_per_episode}, average return: {round(avg_return, 2)}")
 
             # save model just in case
-            torch.save(sac.pi.state_dict(), f'trained_model_{step % steps_per_episode}.pt')
+            torch.save(sac.pi.state_dict(), f'trained_model_{step // steps_per_episode}.pt')
 
     env.close()
     torch.save(sac.pi.state_dict(), 'trained_model.pt')

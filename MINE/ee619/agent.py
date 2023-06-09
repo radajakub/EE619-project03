@@ -94,15 +94,15 @@ class GaussianPolicy(nn.Module):
         mu, sig = self(to_tensor(state).unsqueeze(0))
 
         distribution = Normal(mu, sig)
-        action = distribution.rsample()
+        action = distribution.rsample().squeeze(0)
 
         return self.squash(action, distribution)
 
     # squas action so it is in interval (-1, 1)
     def squash(self, action, distribution):
         # compute log probabilities (fixed by stable version from OpenAI)
-        log_prob = distribution.log_prob(action).sum(axis=-1)
-        log_prob -= torch.sum(2*(np.log(2) - action - F.softplus(-2 * action)), dim=1)
+        log_prob = distribution.log_prob(action).sum(axis=-1).squeeze(0)
+        log_prob -= (2*(np.log(2) - action - F.softplus(-2 * action))).sum(axis=1)
         squashed_scaled = self.max_action * torch.tanh(action)
 
         return squashed_scaled, log_prob

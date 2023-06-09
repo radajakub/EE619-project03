@@ -16,10 +16,10 @@ class SAC:
         # initialize temperature alpha based on temperature parameter
         if temperature is None:
             self.alpha = AutotuningAlpha(action_dim, learning_rate=learning_rate)
-            self.update_alpha = True
+            self.should_update_alpha = True
         else:
             self.alpha = ConstAlpha(temperature)
-            self.update_alpha = False
+            self.should_update_alpha = False
 
         self.Q1 = QFunction(state_dim, action_dim, hidden_dim=q_hidden)
         self.Q1.train()
@@ -43,9 +43,9 @@ class SAC:
         with torch.no_grad():
             # compute action and its log probability by sampling from the policy
             # it includes reparametrization trick and squashing as can be seen in agent.py
-            a_, log_probs = self.pi.act(batch.next_states)
+            a_, log_probs = self.pi.act(batch.s_)
             min_q = torch.minimum(self.Q1_target(batch.s_, a_), self.Q2_target(batch.s_, a_)).squeeze(1)
-            target = batch.r + self.gamma * (1 - batch.d) * (min_q - self.alpha.get() * log_probs).unsqueeze(1)
+            target = batch.r + self.gamma * (1 - batch.d) * (min_q - self.alpha.get() * log_probs)
 
 
         self.Q1_optim.zero_grad()
@@ -74,8 +74,9 @@ class SAC:
         return pi_loss
 
     def update_alpha(self, batch: Batch) -> None:
-        _, log_probs = self.pi.act(batch.s)
-        self.alpha.update(log_probs)
+        if self.should_update_alpha:
+            _, log_probs = self.pi.act(batch.s)
+            self.alpha.update(log_probs)
 
     def update_targets(self) -> None:
         self.Q1_target.soft_update(self.Q1, tau=self.tau)
