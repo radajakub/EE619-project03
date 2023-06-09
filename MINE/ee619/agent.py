@@ -26,7 +26,7 @@ def to_tensor(array: np.ndarray) -> torch.Tensor:
 class Agent:
     """Agent for a Walker2DBullet environment."""
     def __init__(self) -> None:
-        self.policy = GaussianPolicy(24, 6)
+        self.policy = GaussianPolicy(24, 6, hidden_dim=256)
         self.path = join(ROOT, 'trained_model.pt')
 
     def act(self, time_step: TimeStep) -> np.ndarray:
@@ -57,7 +57,7 @@ class Agent:
         self.policy.load_state_dict(torch.load(self.path))
 
 class GaussianPolicy(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int, action_loc: Optional[float]=None, action_scale: Optional[float]=None, hidden_dim: int=64, nonlinearity: str='tanh') -> None:
+    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int=256, nonlinearity: str='tanh') -> None:
         super().__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
@@ -72,9 +72,6 @@ class GaussianPolicy(nn.Module):
             self.activation = nn.ReLU()
         else:
             raise TypeError("The nonlinearity was specified wrongly - choose 'relu' or 'tanh'!")
-
-        self.action_loc = action_loc if action_loc is not None else np.zeros(action_dim)
-        self.action_scale = action_scale if action_scale is not None else np.ones(action_dim)
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         val = self.activation(self.fc1(state))
