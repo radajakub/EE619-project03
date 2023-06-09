@@ -24,7 +24,7 @@ class AutotuningAlpha:
         return self.alpha
 
     def update(self, a_log_probs):
-        alpha_loss = (-self.log_alpha * (a_log_probs + self.H)).mean()
+        alpha_loss = (-self.log_alpha * (a_log_probs + self.H).detach()).mean()
 
         self.optimizer.zero_grad()
         alpha_loss.backward()
