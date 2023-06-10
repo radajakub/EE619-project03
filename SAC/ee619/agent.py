@@ -42,6 +42,7 @@ class GaussianPolicy(nn.Module):
         torch.nn.init.xavier_uniform_(self.fc1.weight)
         torch.nn.init.xavier_uniform_(self.fc2.weight)
         torch.nn.init.xavier_uniform_(self.loc_layer.weight)
+        torch.nn.init.xavier_uniform_(self.log_sig_layer.weight)
 
         if nonlinearity == 'tanh':
             self.activation = nn.Tanh()
