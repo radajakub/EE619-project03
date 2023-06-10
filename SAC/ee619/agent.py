@@ -65,7 +65,7 @@ class GaussianPolicy(nn.Module):
         return mu, sig
 
     def act_deterministic(self, state: torch.tensor) -> torch.tensor:
-        mu, _ = self(state)
+        mu, _ = self(to_tensor(state).unsqueeze(0))
         return self.squash_action(mu).squeeze(0)
 
     def act(self, state: torch.tensor) -> Tuple[torch.tensor, torch.tensor]:
