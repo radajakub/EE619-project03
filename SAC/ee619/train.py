@@ -89,7 +89,9 @@ def main(domain: str,
     # init environment and query information
     env: Environment = suite.load(domain, task, task_kwargs={'random': seed})
 
-    test_env: Environment = suite.load(domain, task)
+    deterministic_test_env: Environment = suite.load(domain, task)
+    random_test_evn: Environment = suite.load(domain, task)
+
     observation_spec = env.observation_spec()
     state_shape = np.sum([np.prod(value.shape, dtype=int) for value in observation_spec.values()])
     action_spec = env.action_spec()
@@ -161,18 +163,31 @@ def main(domain: str,
         next_step = step + 1
         if next_step % steps_per_episode == 0:
             # test current policy
-            total_return = 0
+            deterministic_return = 0
+            random_return = 0
             for _ in range(test_num):
-                time_step = test_env.reset()
-                while not time_step.last():
-                    state = flatten_and_concat(time_step.observation)
+                # test deterministicaly
+                deterministic_step = deterministic_test_env.reset()
+                while not deterministic_step.last():
+                    state = flatten_and_concat(deterministic_step.observation)
                     with torch.no_grad():
                         action = sac.pi.act_deterministic(state)
-                    time_step = test_env.step(action)
-                    total_return += time_step.reward
-            avg_return = total_return / test_num
-            writer.add_scalar('average_return/test', avg_return, step // steps_per_episode)
-            print(f"Test in episode: {step // steps_per_episode}, average return: {round(avg_return, 2)}")
+                    deterministic_step = deterministic_test_env.step(action)
+                    deterministic_return += deterministic_step.reward
+                # test stochasticaly
+                random_step = random_test_evn.reset()
+                while not random_step.last():
+                    state = flatten_and_concat(random_step.observation)
+                    with torch.no_grad():
+                        action, _ = sac.pi.act(to_tensor(state).unsqueeze(0))
+                    random_step = random_test_evn.step(action.squeeze(0).numpy())
+                    random_return += random_step.reward
+            deterministic_avg_return = deterministic_return / test_num
+            random_avg_return = random_return / test_num
+            writer.add_scalar('deterministic_average_return/test', deterministic_avg_return, step // steps_per_episode)
+            writer.add_scalar('random_average_return/test', random_avg_return, step // steps_per_episode)
+            print(f"Deterministic test in episode: {step // steps_per_episode}, average return: {round(deterministic_avg_return, 2)}")
+            print(f"Random test in episode: {step // steps_per_episode}, average return: {round(random_avg_return, 2)}")
 
             # save model just in case
             torch.save(sac.pi.state_dict(), f'trained_model_{step // steps_per_episode}.pt')
