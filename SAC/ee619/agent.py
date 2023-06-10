@@ -113,7 +113,8 @@ class Agent:
         """
         state = flatten_and_concat(time_step.observation)
         # consider only means of actions, don't explore during evaluation
-        action = self.policy.act_deterministic(state)
+        with torch.no_grad():
+            action = self.policy.act_deterministic(state).numpy()
         return action
 
     def load(self):
