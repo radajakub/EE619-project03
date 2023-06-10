@@ -62,8 +62,8 @@ class SAC:
 
     def update_pi(self, batch: Batch) -> float:
         a, log_probs = self.pi.act(batch.s)
-        with torch.no_grad():
-            min_q = torch.minimum(self.Q1(batch.s, a), self.Q2(batch.s, a)).squeeze(-1)
+        # with torch.no_grad():
+        min_q = torch.minimum(self.Q1(batch.s, a), self.Q2(batch.s, a)).squeeze(-1)
 
 
         self.pi_optim.zero_grad()

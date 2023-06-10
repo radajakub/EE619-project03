@@ -64,11 +64,11 @@ class GaussianPolicy(nn.Module):
 
         return mu, sig
 
-    def act_deterministic(self, state: np.ndarray) -> np.ndarray:
-        mu, _ = self(to_tensor(state)).squeeze(0)
-        return self.squash_action(mu)
+    def act_deterministic(self, state: torch.tensor) -> torch.tensor:
+        mu, _ = self(state)
+        return self.squash_action(mu).squeeze(0)
 
-    def act(self, state: np.ndarray) -> np.ndarray:
+    def act(self, state: torch.tensor) -> Tuple[torch.tensor, torch.tensor]:
         mu, sig = self(state)
 
         distribution = Normal(mu, sig)
@@ -114,8 +114,9 @@ class Agent:
         state = flatten_and_concat(time_step.observation)
         # consider only means of actions, don't explore during evaluation
         with torch.no_grad():
-            action = self.policy.act_deterministic(state).numpy()
-        return action
+            action, _ = self.policy.act(to_tensor(state).unsqueeze(0))
+            # action = self.policy.act_deterministic(to_tensor(state).unsqueeze(0))
+        return action.numpy()
 
     def load(self):
         """Loads network parameters if there are any."""
