@@ -36,7 +36,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--q-hidden', type=int, default=256)
     parser.add_argument('--pi-hidden', type=int, default=256)
     parser.add_argument('--pi-nonlinearity', type=str, default='relu')
-    parser.add_argument('--initial_steps', type=int, default=10000)
+    parser.add_argument('--initial-steps', type=int, default=10000)
     return parser
 
 def main(domain: str,
@@ -120,8 +120,8 @@ def main(domain: str,
         else:
             with torch.no_grad():
                 action, _ = sac.pi.act(to_tensor(state).unsqueeze(0))
+            action = action.squeeze(0).numpy()
 
-        action = action.squeeze(0)
         # make a step with the environment
         time_step = env.step(action)
         next_state = flatten_and_concat(time_step.observation)
@@ -132,7 +132,7 @@ def main(domain: str,
 
         done = 0 if rollout_length == DM_ROLLOUT_LENGTH else (1 if time_step.last() else 0)
 
-        replay_buffer.push(state, action.detach().numpy(), reward, next_state, done)
+        replay_buffer.push(state, action, reward, next_state, done)
 
         if time_step.last():
             writer.add_scalar('return/train', rollout_return, rollouts)
