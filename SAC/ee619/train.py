@@ -59,6 +59,8 @@ def main(domain: str,
          pi_nonlinearity: str,
          initial_steps: int):
 
+    torch.set_num_threads(torch.get_num_threads())
+
     print(f'===== HYPERPARAMTERS =====')
     print(f'Domain and task: {domain} - {task}')
     print(f'Discount factor gamma: {gamma}')
