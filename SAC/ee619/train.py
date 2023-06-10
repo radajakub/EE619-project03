@@ -167,7 +167,7 @@ def main(domain: str,
                 while not time_step.last():
                     state = flatten_and_concat(time_step.observation)
                     with torch.no_grad():
-                        action = sac.pi.act_deterministic(to_tensor(state))
+                        action = sac.pi.act_deterministic(state)
                     time_step = test_env.step(action)
                     total_return += time_step.reward
             avg_return = total_return / test_num

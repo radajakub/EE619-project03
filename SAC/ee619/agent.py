@@ -65,7 +65,7 @@ class GaussianPolicy(nn.Module):
         return mu, sig
 
     def act_deterministic(self, state: np.ndarray) -> np.ndarray:
-        mu, _ = self(to_tensor(state))
+        mu, _ = self(to_tensor(state)).squeeze(0)
         return self.squash_action(mu)
 
     def act(self, state: np.ndarray) -> np.ndarray:
