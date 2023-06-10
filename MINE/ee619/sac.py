@@ -44,7 +44,7 @@ class SAC:
             # compute action and its log probability by sampling from the policy
             # it includes reparametrization trick and squashing as can be seen in agent.py
             a_, log_probs = self.pi.act(batch.s_)
-            min_q = torch.minimum(self.Q1_target(batch.s_, a_), self.Q2_target(batch.s_, a_)).squeeze(1)
+            min_q = torch.minimum(self.Q1_target(batch.s_, a_), self.Q2_target(batch.s_, a_)).squeeze(-1)
             target = batch.r + self.gamma * (1 - batch.d) * (min_q - self.alpha.get() * log_probs)
 
 
@@ -63,7 +63,7 @@ class SAC:
     def update_pi(self, batch: Batch) -> float:
         a, log_probs = self.pi.act(batch.s)
         with torch.no_grad():
-            min_q = torch.minimum(self.Q1(batch.s, a), self.Q2(batch.s, a)).squeeze(1)
+            min_q = torch.minimum(self.Q1(batch.s, a), self.Q2(batch.s, a)).squeeze(-1)
 
 
         self.pi_optim.zero_grad()

@@ -13,6 +13,8 @@ from sac import SAC
 
 ROOT = dirname(abspath(realpath(__file__)))  # path to the directory
 
+DM_ROLLOUT_LENGTH = 1000
+
 def build_argument_parser() -> ArgumentParser:
     """Returns an argument parser for main."""
     parser = ArgumentParser()
@@ -25,7 +27,7 @@ def build_argument_parser() -> ArgumentParser:
     parser.add_argument('--update-every', type=int, default=50)
     parser.add_argument('--num-episodes', type=int, default=int(1000))
     parser.add_argument('--steps-per-episode', type=int, default=int(1e4))
-    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--test-num', type=int, default=10)
     parser.add_argument('--temperature', type=float, default=None)
     parser.add_argument('--replay-size', type=int, default=int(1e6))
@@ -86,6 +88,7 @@ def main(domain: str,
 
     # init environment and query information
     env: Environment = suite.load(domain, task, task_kwargs={'random': seed})
+
     test_env: Environment = suite.load(domain, task)
     observation_spec = env.observation_spec()
     state_shape = np.sum([np.prod(value.shape, dtype=int) for value in observation_spec.values()])
@@ -102,9 +105,10 @@ def main(domain: str,
     updates = 0
     steps = num_episodes * steps_per_episode
     time_step = env.reset()
-    episode_return = 0
-    episode_length = 0
+    rollout_return = 0
+    rollout_length = 0
     updates = 0
+    rollouts = 0
 
     for step in range(steps):
         # get current state
@@ -114,41 +118,43 @@ def main(domain: str,
         if step < initial_steps:
             action = np.random.uniform(action_spec.minimum, action_spec.maximum, action_spec.shape)
         else:
-            action = sac.pi.act(to_tensor(state))
-            exit(0)
+            with torch.no_grad():
+                action, _ = sac.pi.act(to_tensor(state).unsqueeze(0))
 
+        action = action.squeeze(0)
         # make a step with the environment
         time_step = env.step(action)
         next_state = flatten_and_concat(time_step.observation)
         reward = time_step.reward
 
-        episode_return += reward
-        episode_length += 1
+        rollout_return += reward
+        rollout_length += 1
 
-        done = False if episode_length == steps_per_episode else time_step.last()
+        done = 0 if rollout_length == DM_ROLLOUT_LENGTH else (1 if time_step.last() else 0)
 
-        replay_buffer.push(state, action, reward, next_state, done)
+        replay_buffer.push(state, action.detach().numpy(), reward, next_state, done)
 
         if time_step.last():
-            writer.add_scalar('return/train', episode_return, step // steps_per_episode)
-            print(f"Episode: {step // steps_per_episode}, return: {round(episode_return, 2)}")
+            writer.add_scalar('return/train', rollout_return, rollouts)
+            print(f"Rollout: {rollouts}, return: {round(rollout_return, 2)}")
             env.reset()
-            episode_length = 0
-            episode_return = 0
+            rollout_length = 0
+            rollout_return = 0
+            rollouts += 1
 
         if replay_buffer.can_sample() and step % update_every == 0:
             for _ in range(update_every):
                 batch = replay_buffer.sample()
-                q1loss, q2loss = sac.update_Q(batch)
-                piloss = sac.update_pi(batch)
+                q1_loss, q2_loss = sac.update_Q(batch)
+                pi_loss = sac.update_pi(batch)
                 sac.update_alpha(batch)
                 if step % target_update == 0:
                     sac.update_targets()
-                writer.add_scalar('loss/Q1', q1loss, updates)
-                writer.add_scalar('loss/Q2', q2loss, updates)
-                writer.add_scalar('loss/Q', q1loss + q2loss, updates)
-                writer.add_scalar('loss/pi', piloss, updates)
-                writer.add_scalar('temperature', sac.alpha.get(), updates)
+                writer.add_scalar('loss/Q1', q1_loss, updates)
+                writer.add_scalar('loss/Q2', q2_loss, updates)
+                writer.add_scalar('loss/Q', q1_loss + q2_loss, updates)
+                writer.add_scalar('loss/pi', pi_loss, updates)
+                writer.add_scalar('alpha', sac.alpha.get(), updates)
                 updates += 1
 
         # this is the last step of an episode (fixed length of steps)
@@ -159,9 +165,9 @@ def main(domain: str,
             for _ in range(test_num):
                 time_step = test_env.reset()
                 while not time_step.last():
-                    state = to_tensor(flatten_and_concat(time_step.observation))
+                    state = flatten_and_concat(time_step.observation)
                     with torch.no_grad():
-                        action = sac.pi.act_deterministic(state)
+                        action = sac.pi.act_deterministic(to_tensor(state))
                     time_step = test_env.step(action)
                     total_return += time_step.reward
             avg_return = total_return / test_num
