@@ -132,7 +132,7 @@ def main(domain: str,
         rollout_return += reward
         rollout_length += 1
 
-        done = 0 if rollout_length == DM_ROLLOUT_LENGTH else (1 if time_step.last() else 0)
+        done = 0 if rollout_length == DM_ROLLOUT_LENGTH else time_step.last()
 
         replay_buffer.push(state, action, reward, next_state, done)
 

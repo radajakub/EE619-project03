@@ -21,11 +21,11 @@ class QFunction(nn.Module):
         torch.nn.init.xavier_uniform_(self.fc3.weight)
 
     def forward(self, state, action):
-        state_action = torch.cat([state, action], dim=1)
+        state_action = torch.cat([state, action], dim=-1)
         q = F.relu(self.fc1(state_action))
         q = F.relu(self.fc2(q))
         q = self.fc3(q)
-        return q
+        return q.squeeze(-1)
 
     def hard_update(self, other: QFunction) -> None:
         self.load_state_dict(deepcopy(other.state_dict()))
