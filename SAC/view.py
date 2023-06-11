@@ -33,27 +33,6 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def evaluate(agent: Agent,
-             domain: str,
-             label: Optional[str],
-             repeat: int,
-             seed: int,
-             task: str):
-    """Computes the mean episodic return of the agent.
-
-    Args:
-        agent_class: The agent class to evaluate.
-        domain: DMControl domain to evaluate the agent.
-        label: If None, the mean episodic return will be printed to stdout.
-            Otherwise, it will be dumped to a pickle file of the given name
-            under the "data" directory.
-        repeat: Number of trials.
-        seed: Passed to the environment for determinism.
-        task: DMControl task to evaluate the agent.
-    """
-    rewards: List[float] = []
-
-
 if __name__ == '__main__':
         env: Environment = suite.load(domain_name='walker',
                                       task_name='run', task_kwargs={"random": 42})
