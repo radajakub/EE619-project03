@@ -101,9 +101,10 @@ class GaussianPolicy(nn.Module):
 
 class Agent:
     """Agent for a Walker2DBullet environment."""
-    def __init__(self) -> None:
+    def __init__(self, deterministic=True)-> None:
         self.policy = GaussianPolicy(24, 6, hidden_dim=256)
         self.path = join(ROOT, 'trained_model.pt')
+        self.deterministic = deterministic
 
     def act(self, time_step: TimeStep) -> np.ndarray:
         """Returns the action to take for the current time-step.
@@ -112,11 +113,13 @@ class Agent:
             time_step: a namedtuple with four fields step_type, reward,
                 discount, and observation.
         """
-        state = flatten_and_concat(time_step.observation)
+        state = to_tensor(flatten_and_concat(time_step.observation)).unsqueeze(0)
         # consider only means of actions, don't explore during evaluation
         with torch.no_grad():
-            action, _ = self.policy.act(to_tensor(state).unsqueeze(0))
-            # action = self.policy.act_deterministic(to_tensor(state).unsqueeze(0))
+            if self.deterministic:
+                action = self.policy.act_deterministic(state)
+            else:
+                action, _ = self.policy.act(state)
         return action.numpy()
 
     def load(self):
