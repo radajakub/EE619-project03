@@ -59,4 +59,4 @@ if __name__ == '__main__':
                                       task_name='run', task_kwargs={"random": 42})
         agent = Agent()
         agent.load()
-        viewer.launch(env, policy=(lambda time_step: agent.act(time_step)))
+        viewer.launch(env, policy=(lambda time_step: agent.act(time_step)), height=1080, width=1920)
