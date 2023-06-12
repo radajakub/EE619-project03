@@ -1,0 +1,372 @@
+/mnt/home/20236065/anaconda3/lib/python3.10/site-packages/glfw/__init__.py:916: GLFWError: (65544) b'X11: The DISPLAY environment variable is missing'
+  warnings.warn(message, GLFWError)
+===== HYPERPARAMTERS =====
+Domain and task: walker - run
+Discount factor gamma: 0.99
+Target update weight tau: 0.005
+Target update every: 1 steps
+Learning rate: 0.0003
+Update every 50 step
+Number of episodes: 1000
+Steps per episode: 10000
+Random seed: 0
+Temperature alpha: automatic
+Replay buffer size: 1000000
+Replay buffer batch size: 256
+Save intermediate: True
+Q hidden neurons: 256
+PI hidden neurons: 256
+PI non-linearity: relu
+Number of tests to perform at every episode: 10
+Perform intial 10000 steps in the environment to fill the buffer enough
+Rollout: 0, return: 23.41
+Rollout: 1, return: 21.55
+Rollout: 2, return: 22.75
+Rollout: 3, return: 22.96
+Rollout: 4, return: 27.04
+Rollout: 5, return: 22.47
+Rollout: 6, return: 20.01
+Rollout: 7, return: 24.57
+Rollout: 8, return: 21.38
+Rollout: 9, return: 23.08
+Deterministic test in episode: 0, average return: 18.32
+Random test in episode: 0, average return: 28.11
+Rollout: 10, return: 25.71
+Rollout: 11, return: 24.84
+Rollout: 12, return: 34.05
+Rollout: 13, return: 31.24
+Rollout: 14, return: 11.35
+Rollout: 15, return: 27.76
+Rollout: 16, return: 29.15
+Rollout: 17, return: 24.35
+Rollout: 18, return: 22.26
+Rollout: 19, return: 22.93
+Deterministic test in episode: 1, average return: 22.2
+Random test in episode: 1, average return: 25.58
+Rollout: 20, return: 23.36
+Rollout: 21, return: 29.61
+Rollout: 22, return: 26.73
+Rollout: 23, return: 60.05
+Rollout: 24, return: 28.24
+Rollout: 25, return: 28.86
+Rollout: 26, return: 26.38
+Rollout: 27, return: 27.15
+Rollout: 28, return: 47.6
+Rollout: 29, return: 42.9
+Deterministic test in episode: 2, average return: 38.47
+Random test in episode: 2, average return: 41.41
+Rollout: 30, return: 41.18
+Rollout: 31, return: 53.05
+Rollout: 32, return: 40.25
+Rollout: 33, return: 47.94
+Rollout: 34, return: 68.53
+Rollout: 35, return: 54.8
+Rollout: 36, return: 73.02
+Rollout: 37, return: 51.38
+Rollout: 38, return: 75.83
+Rollout: 39, return: 48.16
+Deterministic test in episode: 3, average return: 62.92
+Random test in episode: 3, average return: 71.48
+Rollout: 40, return: 45.96
+Rollout: 41, return: 65.05
+Rollout: 42, return: 82.07
+Rollout: 43, return: 80.87
+Rollout: 44, return: 86.63
+Rollout: 45, return: 89.69
+Rollout: 46, return: 84.34
+Rollout: 47, return: 89.7
+Rollout: 48, return: 89.89
+Rollout: 49, return: 83.66
+Deterministic test in episode: 4, average return: 88.27
+Random test in episode: 4, average return: 79.97
+Rollout: 50, return: 89.03
+Rollout: 51, return: 90.42
+Rollout: 52, return: 58.36
+Rollout: 53, return: 114.55
+Rollout: 54, return: 61.82
+Rollout: 55, return: 126.16
+Rollout: 56, return: 145.37
+Rollout: 57, return: 161.01
+Rollout: 58, return: 131.72
+Rollout: 59, return: 137.26
+Deterministic test in episode: 5, average return: 150.64
+Random test in episode: 5, average return: 120.75
+Rollout: 60, return: 94.32
+Rollout: 61, return: 138.09
+Rollout: 62, return: 174.16
+Rollout: 63, return: 164.84
+Rollout: 64, return: 170.32
+Rollout: 65, return: 147.03
+Rollout: 66, return: 177.03
+Rollout: 67, return: 230.04
+Rollout: 68, return: 241.13
+Rollout: 69, return: 253.74
+Deterministic test in episode: 6, average return: 236.95
+Random test in episode: 6, average return: 221.37
+Rollout: 70, return: 231.33
+Rollout: 71, return: 248.12
+Rollout: 72, return: 270.95
+Rollout: 73, return: 283.6
+Rollout: 74, return: 301.92
+Rollout: 75, return: 297.47
+Rollout: 76, return: 291.95
+Rollout: 77, return: 270.38
+Rollout: 78, return: 310.65
+Rollout: 79, return: 299.02
+Deterministic test in episode: 7, average return: 216.26
+Random test in episode: 7, average return: 239.97
+Rollout: 80, return: 333.23
+Rollout: 81, return: 337.92
+Rollout: 82, return: 325.35
+Rollout: 83, return: 346.25
+Rollout: 84, return: 320.5
+Rollout: 85, return: 348.54
+Rollout: 86, return: 374.72
+Rollout: 87, return: 335.0
+Rollout: 88, return: 388.85
+Rollout: 89, return: 403.59
+Deterministic test in episode: 8, average return: 380.8
+Random test in episode: 8, average return: 369.29
+Rollout: 90, return: 371.58
+Rollout: 91, return: 355.75
+Rollout: 92, return: 386.19
+Rollout: 93, return: 390.81
+Rollout: 94, return: 66.76
+Rollout: 95, return: 374.86
+Rollout: 96, return: 394.85
+Rollout: 97, return: 404.62
+Rollout: 98, return: 399.04
+Rollout: 99, return: 391.51
+Deterministic test in episode: 9, average return: 391.02
+Random test in episode: 9, average return: 387.48
+Rollout: 100, return: 410.46
+Rollout: 101, return: 395.02
+Rollout: 102, return: 381.91
+Rollout: 103, return: 400.65
+Rollout: 104, return: 401.38
+Rollout: 105, return: 394.98
+Rollout: 106, return: 416.04
+Rollout: 107, return: 429.64
+Rollout: 108, return: 433.26
+Rollout: 109, return: 423.9
+Deterministic test in episode: 10, average return: 415.39
+Random test in episode: 10, average return: 409.43
+Rollout: 110, return: 399.4
+Rollout: 111, return: 403.1
+Rollout: 112, return: 428.96
+Rollout: 113, return: 416.57
+Rollout: 114, return: 410.13
+Rollout: 115, return: 390.41
+Rollout: 116, return: 417.21
+Rollout: 117, return: 424.65
+Rollout: 118, return: 387.26
+Rollout: 119, return: 419.76
+Deterministic test in episode: 11, average return: 436.47
+Random test in episode: 11, average return: 422.26
+Rollout: 120, return: 428.99
+Rollout: 121, return: 399.48
+Rollout: 122, return: 393.67
+Rollout: 123, return: 416.2
+Rollout: 124, return: 401.42
+Rollout: 125, return: 420.25
+Rollout: 126, return: 412.06
+Rollout: 127, return: 408.1
+Rollout: 128, return: 420.82
+Rollout: 129, return: 418.85
+Deterministic test in episode: 12, average return: 431.21
+Random test in episode: 12, average return: 424.07
+Rollout: 130, return: 420.81
+Rollout: 131, return: 428.89
+Rollout: 132, return: 443.96
+Rollout: 133, return: 425.23
+Rollout: 134, return: 431.95
+Rollout: 135, return: 434.83
+Rollout: 136, return: 436.22
+Rollout: 137, return: 405.36
+Rollout: 138, return: 452.72
+Rollout: 139, return: 439.88
+Deterministic test in episode: 13, average return: 456.59
+Random test in episode: 13, average return: 447.06
+Rollout: 140, return: 439.93
+Rollout: 141, return: 440.15
+Rollout: 142, return: 435.11
+Rollout: 143, return: 426.17
+Rollout: 144, return: 442.89
+Rollout: 145, return: 446.34
+Rollout: 146, return: 454.49
+Rollout: 147, return: 451.64
+Rollout: 148, return: 456.13
+Rollout: 149, return: 442.44
+Deterministic test in episode: 14, average return: 464.93
+Random test in episode: 14, average return: 455.68
+Rollout: 150, return: 450.45
+Rollout: 151, return: 444.24
+Rollout: 152, return: 466.09
+Rollout: 153, return: 438.45
+Rollout: 154, return: 455.19
+Rollout: 155, return: 448.97
+Rollout: 156, return: 453.81
+Rollout: 157, return: 453.56
+Rollout: 158, return: 474.66
+Rollout: 159, return: 458.05
+Deterministic test in episode: 15, average return: 475.69
+Random test in episode: 15, average return: 469.5
+Rollout: 160, return: 450.5
+Rollout: 161, return: 457.16
+Rollout: 162, return: 471.65
+Rollout: 163, return: 463.04
+Rollout: 164, return: 445.42
+Rollout: 165, return: 441.93
+Rollout: 166, return: 466.72
+Rollout: 167, return: 439.52
+Rollout: 168, return: 460.1
+Rollout: 169, return: 476.92
+Deterministic test in episode: 16, average return: 469.22
+Random test in episode: 16, average return: 459.27
+Rollout: 170, return: 469.7
+Rollout: 171, return: 466.16
+Rollout: 172, return: 465.42
+Rollout: 173, return: 467.73
+Rollout: 174, return: 463.34
+Rollout: 175, return: 474.52
+Rollout: 176, return: 473.3
+Rollout: 177, return: 476.23
+Rollout: 178, return: 478.66
+Rollout: 179, return: 467.25
+Deterministic test in episode: 17, average return: 468.77
+Random test in episode: 17, average return: 461.35
+Rollout: 180, return: 456.93
+Rollout: 181, return: 475.59
+Rollout: 182, return: 481.32
+Rollout: 183, return: 478.67
+Rollout: 184, return: 475.75
+Rollout: 185, return: 471.25
+Rollout: 186, return: 472.79
+Rollout: 187, return: 480.17
+Rollout: 188, return: 476.54
+Rollout: 189, return: 479.38
+Deterministic test in episode: 18, average return: 476.24
+Random test in episode: 18, average return: 465.55
+Rollout: 190, return: 476.9
+Rollout: 191, return: 487.76
+Rollout: 192, return: 480.7
+Rollout: 193, return: 485.85
+Rollout: 194, return: 480.07
+Rollout: 195, return: 482.34
+Rollout: 196, return: 492.18
+Rollout: 197, return: 484.42
+Rollout: 198, return: 488.39
+Rollout: 199, return: 478.64
+Deterministic test in episode: 19, average return: 501.34
+Random test in episode: 19, average return: 496.05
+Rollout: 200, return: 487.75
+Rollout: 201, return: 479.43
+Rollout: 202, return: 482.42
+Rollout: 203, return: 487.18
+Rollout: 204, return: 504.73
+Rollout: 205, return: 487.83
+Rollout: 206, return: 486.83
+Rollout: 207, return: 486.81
+Rollout: 208, return: 491.84
+Rollout: 209, return: 486.99
+Deterministic test in episode: 20, average return: 498.17
+Random test in episode: 20, average return: 492.79
+Rollout: 210, return: 488.21
+Rollout: 211, return: 490.42
+Rollout: 212, return: 499.55
+Rollout: 213, return: 493.31
+Rollout: 214, return: 503.51
+Rollout: 215, return: 506.79
+Rollout: 216, return: 493.59
+Rollout: 217, return: 482.42
+Rollout: 218, return: 495.22
+Rollout: 219, return: 456.85
+Deterministic test in episode: 21, average return: 497.44
+Random test in episode: 21, average return: 491.09
+Rollout: 220, return: 514.91
+Rollout: 221, return: 521.94
+Rollout: 222, return: 503.69
+Rollout: 223, return: 503.31
+Rollout: 224, return: 506.2
+Rollout: 225, return: 494.05
+Rollout: 226, return: 508.21
+Rollout: 227, return: 477.84
+Rollout: 228, return: 497.41
+Rollout: 229, return: 491.47
+Deterministic test in episode: 22, average return: 517.38
+Random test in episode: 22, average return: 511.44
+Rollout: 230, return: 508.08
+Rollout: 231, return: 496.88
+Rollout: 232, return: 477.13
+Rollout: 233, return: 486.2
+Rollout: 234, return: 500.2
+Rollout: 235, return: 490.44
+Rollout: 236, return: 491.44
+Rollout: 237, return: 499.77
+Rollout: 238, return: 497.5
+Rollout: 239, return: 488.05
+Deterministic test in episode: 23, average return: 507.22
+Random test in episode: 23, average return: 502.45
+Rollout: 240, return: 510.45
+Rollout: 241, return: 457.98
+Rollout: 242, return: 476.82
+Rollout: 243, return: 478.55
+Rollout: 244, return: 505.14
+Rollout: 245, return: 480.99
+Rollout: 246, return: 501.32
+Rollout: 247, return: 510.8
+Rollout: 248, return: 501.03
+Rollout: 249, return: 497.6
+Deterministic test in episode: 24, average return: 500.78
+Random test in episode: 24, average return: 497.63
+Rollout: 250, return: 520.65
+Rollout: 251, return: 490.05
+Rollout: 252, return: 501.62
+Rollout: 253, return: 515.43
+Rollout: 254, return: 497.5
+Rollout: 255, return: 501.08
+Rollout: 256, return: 502.41
+Rollout: 257, return: 515.22
+Rollout: 258, return: 500.98
+Rollout: 259, return: 497.54
+Deterministic test in episode: 25, average return: 535.3
+Random test in episode: 25, average return: 526.1
+Rollout: 260, return: 506.26
+Rollout: 261, return: 513.96
+Rollout: 262, return: 499.52
+Rollout: 263, return: 496.58
+Rollout: 264, return: 510.53
+Rollout: 265, return: 505.59
+Rollout: 266, return: 519.03
+Rollout: 267, return: 518.59
+Rollout: 268, return: 513.79
+Rollout: 269, return: 505.67
+Deterministic test in episode: 26, average return: 496.81
+Random test in episode: 26, average return: 498.13
+Rollout: 270, return: 503.83
+Rollout: 271, return: 502.32
+Rollout: 272, return: 514.91
+Rollout: 273, return: 528.86
+Rollout: 274, return: 486.86
+Rollout: 275, return: 507.2
+Rollout: 276, return: 487.83
+Rollout: 277, return: 509.71
+Rollout: 278, return: 512.13
+Rollout: 279, return: 521.52
+Deterministic test in episode: 27, average return: 516.98
+Random test in episode: 27, average return: 512.79
+Rollout: 280, return: 502.05
+Rollout: 281, return: 513.5
+Rollout: 282, return: 508.77
+Rollout: 283, return: 512.61
+Rollout: 284, return: 505.49
+Rollout: 285, return: 511.42
+Rollout: 286, return: 525.41
+Rollout: 287, return: 525.5
+Rollout: 288, return: 520.76
+Rollout: 289, return: 498.17
+Deterministic test in episode: 28, average return: 497.85
+Random test in episode: 28, average return: 486.01
+Rollout: 290, return: 517.1
+Rollout: 291, return: 520.16
+Rollout: 292, return: 508.79
