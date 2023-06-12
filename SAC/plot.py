@@ -11,18 +11,21 @@ Q_LOSS = {
         'xlabel' : 'Steps',
         'ylabel' : 'Loss of Q1 + Q2',
         'format': 'sci',
+        'scale': 'linear',
     },
     'loss_Q1' : {
         'title' : 'Loss of Q1 state-action value function',
         'xlabel' : 'Steps',
         'ylabel' : 'Loss of Q1',
         'format': 'sci',
+        'scale': 'linear',
     },
     'loss_Q2' : {
         'title' : 'Loss of Q1 state-action value function',
         'xlabel' : 'Steps',
         'ylabel' : 'Loss of Q2',
         'format': 'sci',
+        'scale': 'linear',
     },
 }
 
@@ -32,12 +35,14 @@ OTHER = {
         'xlabel' : 'Steps',
         'ylabel' : 'Loss of π',
         'format': 'sci',
+        'scale': 'linear',
     },
     'alpha' : {
         'title' : 'Evolution of temperature parameter α',
         'xlabel' : 'Steps',
         'ylabel' : 'α',
         'format': 'sci',
+        'scale': 'log',
     },
 }
 
@@ -47,6 +52,7 @@ RETURN_PLOTS = {
         'xlabel' : 'Rollouts',
         'ylabel' : 'Return',
         'format': 'plain',
+        'scale': 'linear',
     },
 }
 
@@ -65,6 +71,7 @@ TEST_PLOTS = {
     'xlabel': 'Episodes',
     'ylabel': 'Average return',
     'format': 'plain',
+    'scale': 'linear',
 }
 
 BACKGROUND_COLOR = '#303030'
@@ -101,6 +108,7 @@ def prepare_ax(ax):
     ax.spines['right'].set_color(FONT_COLOR)
     ax.tick_params(axis='x', colors=FONT_COLOR)
     ax.tick_params(axis='y', colors=FONT_COLOR)
+    ax.minorticks_off()
 
 
 def plot_qs(path: str, outpath: str):
@@ -111,6 +119,7 @@ def plot_qs(path: str, outpath: str):
         ax.set_title(data['title'], color=FONT_COLOR)
         ax.set_xlabel(data['xlabel'], color=FONT_COLOR)
         ax.set_ylabel(data['ylabel'], color=FONT_COLOR)
+        ax.set_yscale(data['scale'])
         ax.ticklabel_format(axis='both', style=data['format'], scilimits=(0, 0))
 
         steps, vals = load_data(path, name)
@@ -127,7 +136,8 @@ def plot_tests(path: str, outpath: str):
     ax.set_title(TEST_PLOTS['title'], color=FONT_COLOR)
     ax.set_xlabel(TEST_PLOTS['xlabel'], color=FONT_COLOR)
     ax.set_ylabel(TEST_PLOTS['ylabel'], color=FONT_COLOR)
-    ax.ticklabel_format(axis='both', style=TEST_PLOTS['format'], scilimits=(0, 0))
+    ax.set_yscale(TEST_PLOTS['scale'])
+    ax.ticklabel_format(axis='x', style=TEST_PLOTS['format'], scilimits=(0, 0))
 
     colors = [RED, BLUE]
 
@@ -135,7 +145,7 @@ def plot_tests(path: str, outpath: str):
         steps, vals = load_data(path, data['path'])
         ax.plot(steps, vals, color=color, label=data['label'])
 
-    ax.legend(loc='upper left')
+    ax.legend(loc='lower right')
 
     plt.tight_layout()
     fig.savefig(join(outpath, 'tests.png'), transparent=False, facecolor=BACKGROUND_COLOR, dpi=500)
@@ -149,7 +159,8 @@ def plot_returns(path: str, outpath: str):
         ax.set_title(data['title'], color=FONT_COLOR)
         ax.set_xlabel(data['xlabel'], color=FONT_COLOR)
         ax.set_ylabel(data['ylabel'], color=FONT_COLOR)
-        ax.ticklabel_format(axis='both', style=data['format'], scilimits=(0, 0))
+        ax.set_yscale(data['scale'])
+        ax.ticklabel_format(axis='x', style=data['format'], scilimits=(0, 0))
 
         steps, vals = load_data(path, name)
         ax.plot(steps, vals, color=RED)
@@ -166,7 +177,8 @@ def plot_others(path: str, outpath: str):
         ax.set_title(data['title'], color=FONT_COLOR)
         ax.set_xlabel(data['xlabel'], color=FONT_COLOR)
         ax.set_ylabel(data['ylabel'], color=FONT_COLOR)
-        ax.ticklabel_format(axis='both', style=data['format'], scilimits=(0, 0))
+        ax.set_yscale(data['scale'])
+        ax.ticklabel_format(axis='x', style=data['format'], scilimits=(0, 0))
 
         steps, vals = load_data(path, name)
         ax.plot(steps, vals, color=RED)
