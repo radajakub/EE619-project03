@@ -1,2 +1,2 @@
-# EE619-project03
+# Soft Actor-Critic
 KAIST - Mathematical Foundations of Reinforcement Learning project 03 - Continuous control
